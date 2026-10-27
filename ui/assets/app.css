@@ -1,0 +1,1298 @@
+/* HANA云音乐 — 共用外观。纸白、墨色、一点苔青；克制、留白，缩小后仍耐看。 */
+
+:root {
+  --paper: #f8f6f1;
+  --paper-sink: #f1eee6;
+  --edge: rgba(42, 43, 46, 0.1);
+  --edge-soft: rgba(42, 43, 46, 0.06);
+  --ink: #282a2d;
+  --ink-soft: #6f737a;
+  --ink-faint: #a3a7ae;
+  --accent: #6f938c;
+  --accent-deep: #5b8079;
+  --accent-wash: rgba(111, 147, 140, 0.13);
+  --accent-wash-strong: rgba(111, 147, 140, 0.22);
+  --shadow: 0 1px 2px rgba(30, 32, 36, 0.05), 0 10px 26px rgba(30, 32, 36, 0.06);
+  --radius: 14px;
+  --serif: var(--hana-font-serif, "Songti SC", "STSong", "SimSun", serif);
+  --ui: var(--hana-font-ui, ui-sans-serif, system-ui, "Segoe UI", "Microsoft YaHei", sans-serif);
+}
+
+:root[data-appearance="dark"] {
+  --paper: #1c1d20;
+  --paper-sink: #232427;
+  --edge: rgba(255, 255, 255, 0.09);
+  --edge-soft: rgba(255, 255, 255, 0.05);
+  --ink: #e7e5e1;
+  --ink-soft: #9ba0a7;
+  --ink-faint: #6d7178;
+  --accent: #8fb3ab;
+  --accent-deep: #a4c4bc;
+  --accent-wash: rgba(143, 179, 171, 0.16);
+  --accent-wash-strong: rgba(143, 179, 171, 0.26);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 12px 30px rgba(0, 0, 0, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance]) {
+    --paper: #1c1d20;
+    --paper-sink: #232427;
+    --edge: rgba(255, 255, 255, 0.09);
+    --edge-soft: rgba(255, 255, 255, 0.05);
+    --ink: #e7e5e1;
+    --ink-soft: #9ba0a7;
+    --ink-faint: #6d7178;
+    --accent: #8fb3ab;
+    --accent-deep: #a4c4bc;
+    --accent-wash: rgba(143, 179, 171, 0.16);
+    --accent-wash-strong: rgba(143, 179, 171, 0.26);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 12px 30px rgba(0, 0, 0, 0.3);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- 迷你面板（功能面板） ---------- */
+body.mini {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mini-top {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  min-width: 0;
+}
+
+.mini-cover {
+  position: relative;
+  flex: 0 0 50px;
+  width: 50px;
+  cursor: pointer;
+  height: 50px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--accent-wash);
+  border: 1px solid var(--edge-soft);
+}
+
+.mini-cover img,
+.player-cover img,
+.row-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* 无封面时的占位，纯 CSS 驱动：
+ *   <img> 没有 src 时自动隐藏（浏览器会把它画成破图加 alt 文字，不能留着），
+ *   占位层与 <img> 互斥。不去让 JS 切类，免掉时序与首帧不一致的麻烦。 */
+.cover-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+}
+
+.cover-empty svg {
+  width: 44%;
+  height: 44%;
+  opacity: 0.3;
+  display: block;
+}
+
+.cover-empty circle { fill: var(--accent); }
+.mini-cover .cover-empty svg { width: 64%; height: 64%; }
+
+.player-cover img:not([src]),
+.mini-cover img:not([src]) { display: none; }
+
+.player-cover img[src] ~ .cover-empty,
+.mini-cover img[src] ~ .cover-empty { display: none; }
+
+.mini-meta { min-width: 0; flex: 1 1 auto; }
+
+.mini-title {
+  font-family: var(--serif);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-cover:hover { border-color: var(--accent); }
+.mini-title:hover { color: var(--accent); }
+
+.mini-sub {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-bar {
+  position: relative;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  cursor: pointer;
+}
+
+.mini-bar > i,
+.bar > i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.mini-times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+
+.mini-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.mini-ctrl button {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  color: var(--ink-soft);
+  transition: background 0.16s, color 0.16s, transform 0.1s;
+}
+
+.mini-ctrl button:hover { background: var(--accent-wash); color: var(--ink); }
+.mini-ctrl button:active { transform: scale(0.94); }
+.mini-ctrl button.play {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 4px 12px var(--accent-wash-strong);
+}
+.mini-ctrl button.play:hover { background: var(--accent-deep); color: #fff; }
+.mini-ctrl button[disabled] { opacity: 0.3; cursor: default; }
+
+/* 循环 / 随机 / 红心：沿用整页那套语言（辅助键小一号，开启时点亮） */
+.mini-ctrl .spacer { flex: 1 1 auto; }
+.mini-ctrl button.aux { width: 26px; height: 26px; color: var(--ink-faint); }
+.mini-ctrl button.aux.on,
+.mini-ctrl button.heart.on { color: var(--accent); background: var(--accent-wash); }
+
+/* 迷你面板的音量行（只在 mpv 后端显示）：滑杆外观沿用上面那套全局 range 规则 */
+.mini-vol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.mini-vol input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 16px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.mini-vol .num { flex: 0 0 auto; color: var(--ink-soft); }
+
+/* 面板里的就地列表（搜歌手 / 开专辑）：占满中间自己滚；列表开着时把上方那些藏起来 */
+body.mini.list-open .mini-top,
+body.mini.list-open #progBox,
+body.mini.list-open .mini-vol { display: none; }
+
+.mini-list { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.mini-list-head { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); }
+/* 「← 返回」（播放列表 / 云歌单 / 本地列表里的退出口）。
+   2026-10-16 用户要求“做得明显一些”：原来 1px var(--edge)（10% 黑）细得像条灰线，
+   在小面板里几乎看不出来。现在加粗到 2px、描边换成真的中灰、盒子放大一档、字重 600。 */
+.mini-back {
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  border-radius: 9px;
+  border: 2px solid var(--ink-soft);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.mini-back:hover { background: var(--accent-wash-strong); border-color: var(--accent); color: var(--ink); }
+.mini-list-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mini-rows { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.mini-rows::-webkit-scrollbar { width: 8px; }
+.mini-rows::-webkit-scrollbar-thumb { background: var(--edge); border-radius: 8px; }
+
+.mini-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; cursor: pointer; }
+.mini-row:hover { background: var(--accent-wash); }
+.mini-row.current .t,
+.mini-row.current .a { color: var(--accent); }
+.mini-row.unplayable .t,
+.mini-row.unplayable .a { color: var(--ink-faint); }
+.mini-row-cover {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--accent-wash);
+}
+.mini-row-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mini-row .nm { min-width: 0; flex: 1 1 auto; }
+.mini-row .t {
+  display: block;
+  font-size: 12px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-row .a {
+  display: block;
+  margin-top: 1px;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-row.unplayable .mini-row-cover { opacity: 0.45; filter: grayscale(1); }
+
+/* 小面板里的到顶/到底/定位：与整页同一套语言（三颗圆钮 + 定位后闪一下），尺寸小一号。
+   竖排浮在列表右下角；right 要让开 .mini-rows 那条 8px 的滚动条，别跟它叠在一起。
+   真能滚时才出现，出现时给最后几行腾一条底沟。 */
+.mini-jump {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 3;
+}
+.mini-jump-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  background: var(--paper);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  opacity: 0.88;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.mini-jump-btn svg { width: 11px; height: 11px; }
+.mini-jump-btn:hover { opacity: 1; color: var(--accent); background: var(--accent-wash); }
+.mini-jump-btn:disabled { opacity: 0.3; cursor: default; }
+.mini-jump-btn:disabled:hover { color: var(--ink-soft); background: var(--paper); }
+.mini-jump-btn.locate { color: var(--accent); }
+.mini-jump-btn.locate:disabled { color: var(--ink-soft); }
+/* 竖排那三颗钮只占最右一列。右带 = 滚动条 8px + 留白 24px；钮在 10..28，
+   所以列尾到钮还留 4px，既不压字也不白留空。 */
+.mini-list.has-jump .mini-rows { padding-bottom: 74px; padding-right: 24px; }
+.mini-row.flash { animation: rowflash 1.3s ease-out; }
+
+/* 两行：第一行「第 N 首」+ 歌单按钮；第二行状态与模式独占一行——
+   不然它要跟左边那串和右边那颗按钮抢宽度，四字文案一多就被截断。 */
+.mini-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 8px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  min-height: 18px;
+}
+.mini-foot #count { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 「谁在出声」跟着数字走，所以让这一格吃掉中间的空白（数字不再自己长，
+   否则文本会被挤到最右边去）；剩下的空白在它右边，歌单才顶得住右端。 */
+.mini-foot #who { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-foot #note {
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-foot .mini-open {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: 8px;
+  border: 1px solid var(--edge-soft);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.mini-foot .mini-open:hover { background: var(--accent-wash); color: var(--ink); }
+/* 歌词条开着时那颗开关的态（v0.12.0） */
+.mini-foot .mini-open.on { background: var(--accent-wash); color: var(--ink); font-weight: 600; }
+.mini-foot .warn { color: #b07b62; }
+
+svg.icon { width: 15px; height: 15px; fill: currentColor; display: block; }
+svg.icon.big { width: 18px; height: 18px; }
+
+/* ---------- 控制台 ---------- */
+body.console {
+  padding: 18px 20px 22px;
+  overflow: hidden;
+}
+
+/* 注意：selector 必须写成 div.console。
+   body 也带 class="console"（见上面 body.console），若写成裸 .console，body 自己也会变成
+   两列网格 —— 整个页面被塞进第一列（340px），面板被挤成 1.6px（看上去就是一条竖线 + 右边一大块空白）。
+   这个坑真踩过，别再改回去。 */
+div.console {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(268px, 340px) minmax(0, 1fr);
+  /* 行高明确写成 1fr：下面 .panel 用的是 height:100%，得让 grid area 先有确定高度，
+     否则百分比高度会退成 auto。 */
+  grid-template-rows: minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+
+/* ---------- 低分辨率适配（2026-10-12，目标：1280×720 也能用） ----------
+   只在小屏生效，宽高充足时一个字不改。 */
+
+/* 窗口不够宽：左列收窄，把空间让给歌词/列表 */
+@media (max-width: 1200px) {
+  div.console { grid-template-columns: minmax(230px, 288px) minmax(0, 1fr); gap: 16px; }
+}
+
+/* 窗口不够高：收紧外边距，封面收小（1:1 大图是矮屏的头号吃高户） */
+@media (max-height: 780px) {
+  body.console { padding: 12px 14px 14px; }
+  .player-cover { max-width: 190px; margin: 0 auto; }
+  .player { padding: 14px 14px 12px; }
+  .ctrl { margin-top: 10px; }
+  .underrow { margin-top: 8px; }
+}
+
+@media (max-width: 760px) {
+  body.console { overflow: auto; }
+  div.console { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  /* 窄窗口下单列堆叠：播放器不收身的话，它一个人（封面是 1:1 大图）就能把面板
+     整个顶出屏幕 —— 实际效果就是「看不到 tab、找不到搜索框」。这里把封面压到 168px，
+     让 tabs 与列表紧跟其后。 */
+  .player { padding: 14px 14px 12px; }
+  .player-cover { max-width: 168px; margin: 0 auto; }
+  .track { margin-top: 10px; text-align: center; }
+  .track h1 { font-size: 17px; margin-bottom: 2px; }
+  .ctrl { margin-top: 10px; }
+  .underrow { margin-top: 8px; }
+  .note { text-align: center; }
+}
+
+@media (max-width: 560px) {
+  .player-cover { max-width: 132px; }
+}
+
+.player {
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  padding: 18px 18px 14px;
+  box-shadow: var(--shadow);
+  position: relative;
+  /* 跟随容器高度（2026-10-12）：原来是内容撑开，屏一矮（720p）控件就会被顶出卡片。
+     改成跟右列一样吃容器高度，装不下就在卡片里滚，宁可滚、不许裁。 */
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.player::before {
+  content: "";
+  position: absolute;
+  inset: -40px -10px auto -10px;
+  height: 130px;
+  pointer-events: none;
+  background:
+    radial-gradient(160px 70px at 16% 55%, var(--accent-wash), transparent 72%),
+    radial-gradient(220px 84px at 84% 4%, var(--accent-wash), transparent 74%);
+}
+
+.player-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--accent-wash);
+  border: 1px solid var(--edge-soft);
+  box-shadow: 0 8px 22px rgba(30, 32, 36, 0.1);
+}
+
+.player-cover.busy img { opacity: 0.5; filter: saturate(0.7); }
+
+.track { margin-top: 14px; min-width: 0; }
+
+.track h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.34;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track p {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 9px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.badge.off { color: var(--ink-faint); background: var(--edge-soft); }
+.badge .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: breathe 2.4s ease-in-out infinite;
+}
+.badge.off .dot { animation: none; opacity: 0.5; }
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.barwrap { padding-top: 15px; cursor: pointer; }
+
+.bar {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  transition: height 0.16s;
+}
+
+.barwrap:hover .bar { height: 6px; }
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.02em;
+}
+
+.ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 16px;
+}
+
+.ctrl button {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  color: var(--ink-soft);
+  transition: background 0.16s, color 0.16s, transform 0.1s;
+}
+
+.ctrl button:hover { background: var(--accent-wash); color: var(--ink); }
+.ctrl button:active { transform: scale(0.95); }
+.ctrl button:disabled { opacity: 0.32; cursor: default; }
+
+.ctrl button.play {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  box-shadow: 0 5px 14px var(--accent-wash-strong);
+}
+.ctrl button.play:hover { background: var(--accent-deep); color: #fff; }
+.ctrl button.play svg { width: 20px; height: 20px; }
+
+.ctrl button.heart.on { color: var(--accent); background: var(--accent-wash); }
+
+/* 随机 / 循环这类辅助开关：比主按铃小一号，开启时亮起来 */
+.ctrl button.aux { width: 28px; height: 28px; color: var(--ink-faint); }
+.ctrl button.aux.on { color: var(--accent); background: var(--accent-wash); }
+
+/* 不支持独占的输出：那个勾变灰（后端也不接受这个组合） */
+.mpv-excl.off { opacity: 0.5; }
+.mpv-excl.off input[type="checkbox"] { cursor: not-allowed; }
+
+/* hidden 得真的能藏住：.underrow / .pl-head 都写了 display，会盖过浏览器的 [hidden]。
+   （以前「MPV 设备」行在界面播放模式下一直漏着，就是这个原因。） */
+[hidden] { display: none !important; }
+
+/* 队列行上的小红心与拖拽 */
+.trackrow .row-heart {
+  width: 26px;
+  height: 26px;
+  margin-left: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--ink-faint);
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.trackrow:hover .row-heart,
+.trackrow .row-heart.on { opacity: 1; }
+.trackrow .row-heart.on { color: var(--accent); }
+.trackrow .row-heart:hover { background: var(--accent-wash); }
+.trackrow[draggable="true"] { cursor: grab; }
+/* 行上的下载按钮：跟红心一个脾气（平时不显，悬停才出来）。
+   下载中/已完成时加 .on 亮着，免得“点了没反应”。 */
+.trackrow .row-dl {
+  width: 26px;
+  height: 26px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--ink-faint);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.trackrow:hover .row-dl,
+.trackrow .row-dl.on { opacity: 1; }
+.trackrow .row-dl.on { color: var(--accent); }
+.trackrow .row-dl:hover { background: var(--accent-wash); color: var(--accent); }
+.trackrow.dragging { opacity: 0.42; }
+.trackrow.drop-target { box-shadow: inset 0 2px 0 var(--accent); }
+
+.underrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--edge-soft);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.underrow > span { white-space: nowrap; flex: 0 0 auto; }
+
+/* 下载那一块（2026-10-23）：以前 .mini-btn 只在 .tabs / .pl-head 下有样式，
+   .underrow 里的「整单下载 / 目录」没边框没底，看着就是一行普通文字 —— 整块像没做完。
+   这里补成小胶囊按钮，并让标签对齐、下拉同宽。 */
+.underrow > span:first-child { min-width: 3.2em; }
+.underrow select { min-width: 8.4em; }
+.underrow .mini-btn {
+  padding: 4px 11px;
+  border: 1px solid rgba(42, 43, 46, 0.18);
+  border-radius: 999px;
+  background: var(--paper, #fff);
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s, border-color 0.16s;
+}
+.underrow .mini-btn:hover {
+  background: var(--accent-wash);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.underrow .mini-btn:active { transform: translateY(0.5px); }
+
+/* 路径条：收成一行，超长省略；点得亮 —— 它本身就是一个可点的控件。
+   第一版边框用的 0.06 透明度太轻，肉眼等同于无框（2026-10-23 异羽：“好像没啥变化”），
+   这里把边框提到 0.16、底色用纸白 —— 一眼能看出“这是一块可点的东西”。 */
+#dlDirHint {
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px solid rgba(42, 43, 46, 0.16);
+  border-radius: 8px;
+  background: var(--paper, #fff);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.16s, color 0.16s, background 0.16s;
+}
+#dlDirHint:hover { border-color: var(--accent); color: var(--ink); background: var(--accent-wash); }
+
+.underrow input[type="range"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 16px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: none;
+}
+
+.note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  min-height: 16px;
+}
+.note.warn { color: #b07b62; }
+
+/* 右侧面板 */
+.panel {
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 320px;
+  /* 2026-10-12：原来写的是 height: calc(100vh - 60px)。那是按视口高度算、还硬减 60px（估的
+     body 内边距），高屏上碰巧装得下，屏幕一矮（如 1080p）或容器高不等于视口高就算过头，
+     而 body.console 是 overflow:hidden —— 底部直接被裁（用户报「下面部分被切掉」）。
+     改成跟随容器：高度 100%（靠 grid-template-rows 定行高），里面 .pane 自己滚。
+     同日又去掉原本的 max-height: 720px —— 左列改成撑满之后，被这个上限一卡两列底部就不齐
+     （用户：两边下面不太对齐）。现在两列都吃满容器高。 */
+  height: 100%;
+}
+
+@media (max-width: 760px) {
+  .panel { height: auto; max-height: none; }
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.tabs button {
+  padding: 8px 12px 10px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.16s, border-color 0.16s;
+}
+
+.tabs button:hover { color: var(--ink); }
+.tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tabs .count { color: var(--ink-faint); font-size: 11px; margin-left: 4px; }
+.tabs .spacer { flex: 1 1 auto; }
+.tabs .mini-btn {
+  padding: 5px 9px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  border-radius: 8px;
+  border: 1px solid var(--edge-soft);
+  margin-bottom: 6px;
+}
+.tabs .mini-btn:hover { background: var(--accent-wash); color: var(--ink); }
+.tabs .mini-btn + .mini-btn { margin-left: 6px; }
+
+.pane { display: none; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px 16px; }
+.pane.on { display: block; }
+
+/* 列表滚动条：加宽并常显（系统 overlay 滚动条又细又会自动隐没，抓不住） */
+.pane::-webkit-scrollbar { width: 12px; height: 12px; }
+.pane::-webkit-scrollbar-track { background: transparent; }
+.pane::-webkit-scrollbar-thumb {
+  background: var(--edge);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+.pane::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-faint);
+  background-clip: content-box;
+}
+.pane::-webkit-scrollbar-corner { background: transparent; }
+
+/* 列表到顶/到底：浮在面板右下角，只在当前面板真能滚时出现 */
+.jump {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 3;
+}
+.jump-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  background: var(--paper);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  opacity: 0.85;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.jump-btn svg { width: 16px; height: 16px; }
+.jump-btn:hover { opacity: 1; color: var(--accent); background: var(--accent-wash); }
+.jump-btn:disabled { opacity: 0.28; cursor: default; }
+.jump-btn:disabled:hover { color: var(--ink-soft); background: var(--paper); }
+/* 「定位当前播放」是另一类动作，给一点主题色提示它跟上下两枚不是一族 */
+.jump-btn.locate { color: var(--accent); }
+.jump-btn.locate:disabled { color: var(--ink-soft); }
+/* 定位后让那一行轻轻闪一下，好让眼睛接上 */
+@keyframes rowflash {
+  0% { background: var(--accent-wash); box-shadow: inset 0 0 0 1px var(--accent); }
+  100% { background: transparent; box-shadow: none; }
+}
+.list li.trackrow.flash { animation: rowflash 1.3s ease-out; }
+/* 控件浮着会压住最后几行，给它腾一条底沟（只在控件出现时占位） */
+.panel.has-jump .pane.on { padding-bottom: 56px; }
+/* 但光有底沟治不了「时长 + 红心」被压：控件还在右边（right:16px + 30px 宽）。
+   右带要按「容器已经让掉多少」来算：控件占 16..46（从面板右边算），
+   而 .pane 自己还有 12px 内边距 + 12px 滚动条，行又自带 8px 内边距。
+   26px 让列尾正好停在钮左边 12px（跟滚动条那条缝一个量级），不白留空。
+   只作用于 .list（队列 / 搜索 / 歌单），歌词那种居中的 .lyric 不受影响。 */
+.panel.has-jump .pane.on .list { padding-right: 26px; }
+
+.searchbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px 2px;
+}
+
+.searchbar input[type="search"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: var(--paper-sink);
+  border: 1px solid var(--edge-soft);
+  border-radius: 10px;
+}
+
+.searchbar input::placeholder { color: var(--ink-faint); }
+
+.searchbar button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+}
+.searchbar button:hover { background: var(--accent-deep); }
+.searchbar button:disabled { opacity: 0.5; cursor: default; }
+
+.hint {
+  padding: 8px 12px 4px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  line-height: 1.5;
+}
+.hint.warn { color: #b07b62; }
+/* 下载提示行：点一下在资源管理器里打开下载目录（完整路径在悬停提示里） */
+#dlHint { cursor: pointer; }
+#dlHint:hover { color: var(--accent); }
+#dlHint.warn:hover { color: #b07b62; }
+
+.list { list-style: none; margin: 0; padding: 0; }
+
+.list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  cursor: default;
+}
+
+.list li.trackrow { cursor: pointer; }
+.list li.trackrow:hover { background: var(--accent-wash); color: var(--ink); }
+.list li.current { color: var(--accent); background: var(--accent-wash); }
+
+.list .idx {
+  flex: 0 0 20px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.list li.current .idx { color: var(--accent); }
+
+.row-cover {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--accent-wash);
+  border: 1px solid var(--edge-soft);
+}
+
+.list .nm { flex: 1 1 auto; min-width: 0; }
+
+.list .nm .t {
+  display: block;
+  color: var(--ink); /* 歌名比歌手深一档：原来继承行的 --ink-soft，跟歌手几乎同色 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.list li.current .nm .t { color: var(--accent); }
+
+/* 作者名 / 专辑名做成可点（分别去搜他的歌、打开这张专辑）：得给个能点得动的样子 */
+[data-artist],
+[data-album] { cursor: pointer; }
+[data-artist]:hover,
+[data-album]:hover { color: var(--accent); text-decoration: underline; }
+
+/* 取不到音源的曲目：整行转灰，时长位置改标「无音源」 */
+.list li.trackrow.unplayable .nm .t,
+.list li.trackrow.unplayable .nm .a,
+.list li.trackrow.unplayable .idx { color: var(--ink-faint); }
+.list li.trackrow.unplayable .row-cover { opacity: 0.45; filter: grayscale(1); }
+.list .dur.bad { color: #b07b62; font-size: 10px; }
+/* 只能试听片段的行（未登录时的 VIP 曲目）：同告警色，但字号维持 11px
+   —— 它仍然能放（只是短），不该跟“无音源”一样退到 10px 忽略不计 */
+.list .dur.trial { color: #b07b62; }
+
+.list .nm .a {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list .dur { flex: 0 0 auto; font-size: 11px; color: var(--ink-faint); }
+
+/* 歌单：层级头（返回 / 标题 / 整单播放） */
+.pl-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 2px;
+}
+.pl-head .pl-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--ink-soft, var(--ink));
+}
+.pl-head .pl-title a { color: inherit; text-decoration: none; border-bottom: 1px dotted currentColor; }
+.pl-head .pl-title a:hover { color: var(--accent); }
+.pl-head .spacer { flex: 1 1 auto; }
+.pl-head button.mini-btn {
+  padding: 5px 9px;
+  border: 1px solid var(--line, rgba(0,0,0,.12));
+  background: transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-soft, var(--ink));
+  cursor: pointer;
+}
+.pl-head button.mini-btn:hover { background: var(--accent-wash); color: var(--ink); }
+.pl-head button.mini-btn:disabled { opacity: .5; cursor: default; }
+.pl-head button.mini-btn:disabled:hover { background: transparent; }
+.pl-head button.mini-btn + .pl-title { margin-left: 2px; }
+
+.empty {
+  padding: 34px 12px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  line-height: 1.7;
+}
+
+/* 歌词 */
+.lyric {
+  padding: 6px 4px 52vh;
+  font-family: var(--serif);
+  font-size: 14.5px;
+  line-height: 2.05;
+  color: var(--ink-soft);
+}
+
+/* 未唱到的行压淡，把重量让给当前那一句 */
+.lyric p {
+  margin: 0;
+  padding: 3px 4px;
+  color: var(--ink-faint);
+  opacity: 0.7;
+  transition: color 0.24s, opacity 0.24s, font-size 0.2s;
+}
+
+/* 正在唱的那一句：字号 + 字重 + 主题色。
+   2026-10-23 异羽先是要“更显目”，加了一道左侧竖线；看完后说“不要左边一道竖线”，
+   于是只留字号/字重/颜色三样 —— 在整页灰字里已经够拉开了，竖线反而是多出来的一道边。 */
+.lyric p.on {
+  color: var(--accent-deep);
+  font-size: 20px;
+  font-weight: 600;
+  opacity: 1;
+}
+
+.lyric p.tr { font-size: 12.5px; padding-top: 0; }
+.lyric p.tr.on { color: var(--accent); font-size: 13px; opacity: 0.92; }
+
+/* ---------- 账号 / 登录浮层 ---------- */
+.acct-btn.on { color: var(--accent-deep); border-color: var(--accent-wash-strong); }
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(28, 30, 33, 0.34);
+}
+
+.modal[hidden] { display: none; }
+
+.modal-card {
+  position: relative;
+  width: min(300px, 86vw);
+  padding: 22px 20px 20px;
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.modal-close {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  width: 26px;
+  height: 26px;
+  padding: 5px;
+  border-radius: 8px;
+  color: var(--ink-faint);
+}
+
+.modal-close:hover { color: var(--ink); background: var(--accent-wash); }
+.modal-close svg { display: block; width: 100%; height: 100%; }
+
+.login-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.login-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.qr-box {
+  width: 210px;
+  height: 210px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+}
+
+.qr { width: 100%; height: 100%; object-fit: contain; }
+.qr-loading { font-size: 13px; color: var(--ink-faint); }
+
+.login-tip {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+
+.login-tip.clickable {
+  color: var(--accent-deep);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.acct {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.acct-avatar {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--edge);
+  background: var(--paper-sink);
+}
+
+.acct-name { font-size: 15px; font-weight: 600; }
+.acct-meta { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+
+/* 表单控件不继承字体、还自带系统外观：统一成 App 的样子。
+   （以前 select 整个没被覆盖，所以框里是系统字体、边框也是默认的。） */
+select,
+input {
+  font-family: inherit;
+  color: var(--ink);
+}
+
+/* 原生下拉的**展开列表**不继承页面主题：它在深色界面里会用默认白底，
+   而选项文字跟着主题变成浅色 → 浅字配白底，整张列表看不清（2026-10-23 异羽截图）。
+   这里把 option / optgroup 的底色与字色显式跟着主题变量走，深浅两套都对。 */
+select option,
+select optgroup {
+  background-color: var(--paper, #fff);
+  color: var(--ink, #2a2b2e);
+}
+select optgroup {
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+/* 歌词字体那个下拉本身（收起状态）：它不在 .underrow 里，没拿到那边的样式，
+   深色模式下会露出浏览器的白底（2026-10-23 异羽第二张截图指出）。
+   这里把底色/字色/边框都接到主题变量上，与旁边几个下拉一致。 */
+#lyricFamily {
+  background-color: var(--paper, #fff);
+  color: var(--ink, #2a2b2e);
+  border: 1px solid var(--edge-soft, rgba(42, 43, 46, 0.12));
+  border-radius: 8px;
+  padding: 3px 6px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+#lyricFamily:hover {
+  border-color: var(--accent);
+}
+.underrow select {
+  appearance: none;
+  height: 26px;
+  /* 右边 22px 是留给箭头的：原生/自画的箭头都画在框上，字不认识它，得主动让位 */
+  padding: 0 22px 0 8px;
+  font-size: 12px;
+  border: 1px solid var(--edge-soft);
+  border-radius: 8px;
+  background-color: var(--paper-sink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 12px 12px;
+  cursor: pointer;
+}
+
+/* MPV 输出行：设备下拉 + 独占勾选 */
+.mpv-excl{display:inline-flex;align-items:center;gap:4px;font-size:12px;opacity:.8;white-space:nowrap;cursor:pointer}
+.mpv-excl input{width:auto;margin:0}
+/* 设备名很长（“吻声器 (FxSound Audio Enhancer)”），别拿硬上限切它：让它弹性占满，
+   悬停用 title 看全名（title 由 syncMpvRow 写） */
+#mpvDevice{flex:1 1 auto;min-width:0;max-width:100%}
+
+
+/* ---------- 环境自检与引导安装（v0.16.0） ----------
+   包里带不了的两个外部依赖（取源服务 api-enhanced / mpv.exe）就靠这块说清楚。 */
+
+/* 未就绪时压在 tabs 上方的那条引导带 */
+.envbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--ink);
+  background: var(--accent-wash);
+  border-bottom: 1px solid var(--edge-soft);
+}
+.envbar[hidden] { display: none; }
+.envbar-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #b07b62;
+}
+.envbar-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 自检面板：比登录卡宽，清单要放得下 */
+.modal-card.env-card {
+  width: min(560px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  text-align: left;
+}
+.env-title { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.env-sub { margin: 0 0 10px; font-size: 12px; color: var(--ink-soft); line-height: 1.6; }
+.env-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.env-item {
+  display: flex;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--edge-soft);
+  border-radius: 10px;
+  background: var(--paper-sink);
+}
+.env-item .mark { flex: 0 0 auto; width: 14px; text-align: center; font-weight: 700; }
+.env-item.ok .mark { color: var(--color-ok); }
+.env-item.bad .mark { color: #b07b62; }
+.env-item.opt .mark { color: var(--ink-faint); }
+.env-item .body { flex: 1 1 auto; min-width: 0; }
+.env-item .t { display: block; font-size: 12.5px; font-weight: 600; }
+.env-item .d { display: block; margin-top: 2px; font-size: 11.5px; color: var(--ink-soft); line-height: 1.6; word-break: break-all; }
+.env-fix { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 7px; }
+.env-fix input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--edge);
+  border-radius: 7px;
+}
+.env-log { margin-top: 10px; }
+.env-log[hidden] { display: none; }
+.env-log pre {
+  margin: 0;
+  padding: 9px 10px;
+  max-height: 180px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--ink-soft);
+  background: var(--paper-sink);
+  border: 1px solid var(--edge-soft);
+  border-radius: 8px;
+}
+.env-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.env-note { font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; }

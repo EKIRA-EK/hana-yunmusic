@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-appearance="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>歌词条</title>
+<style>
+  /* 当前句字号由 JS 设在这个变量上；另三个是与整页歌词对齐的字与色 */
+  :root {
+    --ls-cur: 20px;
+    /* 滚动模式显示区的左右留白。
+       历史：2026-10-16 之前是「只显示中间一半」（左右各让 25%），太窄，字没走几步就淡出；
+       2026-10-17 先放到 64px（≈ 一个「关闭面板」的宽度），用户看后说那四个字反而太抢眼
+       （字一靠近它就把它带出来了）→ 改成**左右各两个「关闭面板」的宽度**（64 × 2 = 128px），
+       给那颗钮留出一段安静的空当。
+       末尾那个 min(…, 25%) 是保底：显示区最窄也不低于中间 50%（即 2026-10-16 之前的值）。
+       ⚠ 「一个关闭面板 = 64px」是估的（那颗钮是宿主的，量不到）。真机上看着不对就改这个数。 */
+    --ls-pad-x: min(128px, 25%);
+    /* 跟随宿主主题：正在唱 = 主题主色（--accent），两侧 = 次级文字（--text-muted）。
+       宿主会把当前主题的样式表注入本文档（SDK 的 followHostTheme），亮暗各一套归它管，
+       面板背景也是宿主的，所以只取这两个变量，不再自己定色。
+       宿主没给（用浏览器直接打开本页调试、或主题没定义）时，退回下面那套苔青兜底值。
+       色值由 JS 读走做插值（不用 color-mix：那个在旧 Chromium 上未必有）。 */
+    --ls-serif: var(--hana-font-serif, "Songti SC", "STSong", "SimSun", serif);
+    --ls-cur-fallback: #5b8079;
+    --ls-side-fallback: #a3a7ae;
+    --ls-cur-color: var(--accent, var(--ls-cur-fallback));
+    --ls-side-color: var(--text-muted, var(--ls-side-fallback));
+    /* 卡拉OK 未唱部分的描边：同两侧那句的颜色，整层再压低透明度（见 .ls-kara-base），
+       免得空心字抢注意力；粗细也在那里定。 */
+    /* 卡拉OK 未唱部分的颜色（2026-10-23）：**灰**，不是对比色。
+       对比色试过（赭石配青绿）—— 异羽：“好像不是很好”，太跳。
+       回到灰，但选**带一点点色偏的灰**：跟主题色同温度，既不抢、也不死。
+       2026-10-25：**四档手选配色各自定义**（teal / ink / clay / sage，见下面那几条）；
+       theme 与 whale **不定义** —— 由 JS 按主色算出“同温度的灰”，写到 `--ls-kara-ghost-derived`。
+       所以别在这里给 --ls-kara-ghost 设默认值，否则派生就永远轮不上。 */
+    --ls-kara-stroke: var(--ls-side-color);
+  }
+  /* 只给兜底色用：宿主主题在的时候这两条不会被读到。 */
+  html[data-appearance="dark"] {
+    --ls-cur-fallback: #a4c4bc;
+    --ls-side-fallback: #6d7178;
+  }
+
+  /* 手选配色（由那颗色点钮循环切）。`theme` 档**不在这张表里** —— 不写就等于走上面的
+     主题跟随，所以「跟随主题 / 手选」两条路不打架。
+     同样只定「正在唱」与「两侧」两个色；未唱描边跟着两侧色、加一层透明度（见 .ls-kara-base）。 */
+  html[data-palette="teal"]  { --ls-cur-color: #5b8079; --ls-side-color: #a3a7ae; --ls-kara-ghost: #9a9d9b; }
+  html[data-palette="ink"]   { --ls-cur-color: #1a3049; --ls-side-color: #8b929b; --ls-kara-ghost: #8b929b; }
+  html[data-palette="clay"]  { --ls-cur-color: #a06a4a; --ls-side-color: #a89a90; --ls-kara-ghost: #a0948c; }
+  html[data-palette="sage"]  { --ls-cur-color: #4f8f72; --ls-side-color: #9aa79f; --ls-kara-ghost: #959b96; }
+  /* 鲸蓝：用户 2026-10-14 拿一张截图来点名要的色（小鲸鱼那行字），取像素得 #636ae8
+     —— 正好也是 HANA「deep-think」主题的主色。 */
+  html[data-palette="whale"] { --ls-cur-color: #636ae8; --ls-side-color: #9ea2b8; }
+  html[data-appearance="dark"][data-palette="teal"] { --ls-cur-color: #a4c4bc; --ls-side-color: #6d7178; }
+  html[data-appearance="dark"][data-palette="ink"]  { --ls-cur-color: #b7c6dc; --ls-side-color: #7c858f; }
+  html[data-appearance="dark"][data-palette="clay"] { --ls-cur-color: #d8a583; --ls-side-color: #8b8078; }
+  html[data-appearance="dark"][data-palette="sage"] { --ls-cur-color: #93c9ae; --ls-side-color: #7b8a82; }
+  html[data-appearance="dark"][data-palette="whale"] { --ls-cur-color: #9297ef; --ls-side-color: #7e8398; }
+
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: block;
+    overflow: hidden;
+    background: transparent;
+    color: var(--ls-side-color);
+    font-family: var(--ls-serif);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- 模式一：中位恒定（三段，换句时一次短位移） ----------
+     方向：**下一句在左、当前句居中、上一句在右** —— 与横向流动模式同向
+     （那边字也是从左往右走）。2026-10-14 用户要求把原来的左右换过来。 */
+  .ls-track {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    column-gap: 16px;
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    padding: 0 22px;
+    /* 两端柔化只在最外一丁点：2026-10-14 由 11% 收到 6% ——
+       下一句换到左格后，行的**开头**就在这一带，11% 会把头三个字压暗，与“要看清”相抵。 */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+  }
+
+  .ls-seg {
+    display: block;
+    /* 三个片段必须都在第一行。这条不能省：下面 .prev/.next 用 grid-column 换了左右，
+       而 DOM 顺序是 prev,cur,next（列 3,2,1），grid 的自动放置游标不往回走
+       → 第二个片段会被挤到第 2 行、第三个到第 3 行，变成竖着三行（2026-10-14 踩到）。 */
+    grid-row: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    will-change: opacity, transform, filter;
+  }
+  /* 左格给“下一句”、右格给“上一句”（靠 grid-column 换位，不动 DOM 顺序）；
+     两侧都朝中间那格靠。 */
+  .ls-seg.next { grid-column: 1; justify-self: end; text-align: right; }
+  .ls-seg.prev { grid-column: 3; justify-self: start; text-align: left; }
+  .ls-seg.cur {
+    grid-column: 2;
+    justify-self: center;
+    text-align: center;
+    max-width: 44vw;
+    font-size: var(--ls-cur);
+    /* 2026-10-21：主句字重试过三条路，**最终用合成加粗**：
+       ① `400` —— 太细（用户实机一看就否）；
+       ② `400` + `-webkit-text-stroke: 0.35px` —— 四周均匀加粗、轮廓干净，但用户说“**太干**”
+          （描边让笔画边缘发硬，没有墨渗开的那层感）；
+       ③ **`600`** —— SimSun 没真粗体，走合成加粗：横向会胖一点、略糊，但**墨厚、不干**。← 当前用这条
+       教训：合成加粗不一定“劣”——它更像墨；描边只解决粗细，解决不了“润”。
+       想再调就改这一个值；**别再加 `font-synthesis: none`**（那会把 600 降回 400）。 */
+    font-weight: 600;
+    color: var(--ls-cur-color);
+    letter-spacing: 0.2px;
+  }
+  .ls-seg.side {
+    max-width: 26vw;
+    font-size: calc(var(--ls-cur) * 0.64);
+    /* 两侧的“退后”程度：2026-10-25 晚第三次调 —— 改用「层染未上色」那一套（ghost 灰、不模糊），
+       但浓度从 **0.2 → 0.3 → 0.4 → 0.36**（早上试过 0.12，太淡；旧版“雾里退后”是 .5 + blur）。
+       现在两侧是“实心淡墨、字是清的”，与尽染那一档同一个语言，只是比它实一点。
+       历史：0.7px + .38（“太糊”）→ 0 + .6（“太清楚”）→ 0.4px + .6 → 0.7px + .5（定稿）→
+             ghost/0.12/无模糊（偏淡）→ 回到 0.7px + .5 → **ghost/0.2/无模糊**。
+       ⚠ 两侧**有 CSS 入场动画**（`ls-in-side`），它的终态 `opacity` / `scale` 必须与这里的静态值一致，
+         否则动画播完会一顿 —— 改这个 opacity 一定要同时改 keyframe。
+       字号故意不动：两侧可见宽度由 1fr 那格定死，字号一放大会少看到几个字。 */
+    color: var(--ls-kara-ghost, var(--ls-kara-ghost-derived, #8b929b));
+    opacity: 0.36;
+    filter: none;
+    transform: scale(0.96);
+  }
+
+  /* 换句时的入场：整条时间轴从左往右推进（下一句在左 → 当前句居中 → 上一句在右），
+     所以三段都从左边进场——左侧那次是“新来的”，右格那次是“刚从中间退过去的”。
+     注意 keyframe 里的终态 opacity / scale 必须与 .ls-seg.side 的静态值一致，
+     否则动画播完会一顿。 */
+  /* 两侧不再用 CSS 动画：长句→短句时中格变窄，两侧的锚点会跟着挪（那是**重排**，透明度动画盖不住），
+     而且它们必须先藏再出现才不双影 —— 那就变成“闪一下换个位置”。
+     改成 JS 里的 FLIP 滑动（见 renderCenter / glideSide）：一直可见地从旧位置滑到新位置。 */
+  @keyframes ls-in-mid {
+    from { opacity: 0; transform: translateX(-16px) scale(0.9); }
+    to   { opacity: 1; transform: translateX(0) scale(1); }
+  }
+  /* 两侧的入场：与中句同一条曲线、同一个 0.42s，**三句一起“推”进来**。
+     2026-10-25 从 0.18.x 的替身/FLIP 方案退回这一版 ——
+     异羽要的就是这种观感：“不是从左走到右，是一下出现，三句一起推”。 */
+  @keyframes ls-in-side {
+    from { opacity: 0; transform: translateX(-11px) scale(0.96); }
+    to   { opacity: 0.36; transform: translateX(0) scale(0.96); }
+  }
+  /* 2026-10-21 改成 V2「就地交叉」：横向交棒被胶片否掉了 —— 旧句走向右廊时
+     新句正从左廊上来，两句都得穿过庭心，在 1000×40 里直接叠在一起。
+     所以：出句交给替身原地淡出（只挪 6px），右廊用**同一句字**接手，
+     眼睛自己会把它读成「走出去了」。 */
+  @keyframes ls-out-mid {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+    to   { opacity: 0; transform: translate(calc(-50% + 6px), -50%) scale(0.92); filter: blur(1.4px); }
+  }
+  /* 逐字落墨：每个字自己淡入 + 上浮 2px + 收一点糊（错峰 delay 在 JS 里塞） */
+  @keyframes ls-ink {
+    from { opacity: 0; transform: translateY(2px) scale(0.97); filter: blur(0.5px); }
+    to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  }
+  .ls-seg.cur.anim { animation: ls-in-mid 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+  .ls-seg.side.anim-prev,
+  .ls-seg.side.anim-next { animation: ls-in-side 0.42s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+  /* 替身：与庭中同格叠放（不用 JS 算位置），只负责把旧句带走。
+     2026-10-21 用户选「方案 2：彻底不重叠」—— 出句只活 0.14s，新句 0.16s 后才起，
+     中间留一瞬空窗（几乎看不见），但不会出现两句同时半透明叠在庭心。 */
+  /* 替身要**脱离布局**：它装着旧句（通常比新句长），如果还占着中格那一列，中格就不会缩窄，
+     两侧的锚点会拖到“替身清空”那一刻才突然挪位 —— 那正是「两边的字一下闪到中间旁边」的成因。
+     绝对定位于中格的中心（grid 子元素绝对定位后，其包含块就是自己的 grid 区域）。 */
+  .ls-ghost { position: absolute; left: 50%; top: 50%; pointer-events: none; }
+  .ls-ghost.out { animation: ls-out-mid 0.14s cubic-bezier(0.4, 0, 0.6, 1) both; }
+  /* 逐字落墨的单字（错峰 delay 在 JS 里塞，基值 0.16s 与上面的入场对齐） */
+  .ls-ch { display: inline-block; animation: ls-ink 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both; }
+
+  /* ---------- 模式二：横向流动（字从左往右走过去） ---------- */
+  .ls-flow {
+    position: absolute;
+    /* 显示区 = 整宽减去左右各一份「关闭面板那四个字」的宽度，两边对称（--ls-pad-x）。
+       历史：2026-10-12 是 inset: 0 25% 10px 25%，只留中间一半；
+       2026-10-16 用户拿了截图指出太窄（黄的框是想要的，右下红框是宿主那颗「关闭面板」）。
+       下边那 10px 不动：iframe 底边紧顶着宿主那行「关闭面板」，字在这个收窄后的容器里居中，
+       重心上提，也不会跑出上边缘。边缘只留 3% 柔化。 */
+    inset: 0 var(--ls-pad-x) 10px var(--ls-pad-x);
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
+  }
+  .ls-flow[hidden] { display: none; }
+  .ls-item {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    white-space: nowrap;
+    font-size: var(--ls-cur);
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    transform-origin: center center;
+    will-change: transform, opacity;
+    /* color 由 JS 按「离中位多远」在两色之间插值后直接设进来 */
+  }
+
+  /* ---------- 没歌词（纯音乐）时的那行说明 ---------- */
+  body.pure .ls-track,
+  body.pure .ls-flow { display: none; }
+  .ls-idle {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--ls-cur) * 0.78);
+    color: var(--ls-side-color);
+    opacity: 0.6;
+    letter-spacing: 0.3px;
+  }
+  .ls-idle[hidden] { display: none; }
+
+  /* ---------- 模式三：卡拉OK（逐字从左到右上色） ---------- */
+  body.pure .ls-kara,
+  .ls-kara[hidden] { display: none; }
+  .ls-kara {
+    position: absolute;
+    inset: 0 6% 10px 6%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .ls-kara-inner { position: relative; display: inline-block; white-space: nowrap; }
+  .ls-kara-text {
+    font-size: var(--ls-cur);
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+  }
+  /* 底层：还没唱到的部分 —— **同色相的淡墨**（实心、低浓度）。
+     2026-10-23 两轮定下来：
+       ① 先去掉空心描边（描边把笔画缝糊住，看着腌）；
+       ② 再把颜色从“两侧色（灰）”换成**主题色本身压到 22%** ——
+          灰字配绿字会像两种颜色各写一半，同色浓淡才是“层染”。
+     想调深浅只改这一个 opacity。 */
+  .ls-kara-base {
+    /* 未唱：灰（跟配色同温度），不是同色相也不是对比色。
+       取值优先级：手选配色档自己定的（teal/ink/clay/sage）→ JS 按主色派生的
+       `--ls-kara-ghost-derived`（theme / whale 两档）→ 最后才是中性灰。 */
+    color: var(--ls-kara-ghost, var(--ls-kara-ghost-derived, #8b929b));
+    /* 浓度：0.12（2026-10-23 异羽定）。历程：0.22 → 0.5（太大）→ 0.26（抢戏）→ 0.15 → 0.12。
+       再往下就别过了 —— 低于 0.10 就回到“看不出填色”的错觉。 */
+    opacity: 0.12;
+  }
+  /* 上层：已唱部分是实心主题色。不再用 clip-path（硬切缝），
+     改用 mask 做**软边（0.7% 羽化）**：交界像墨刚化开一点 —— 这正是「层染」该有的样子。
+     进度由 JS 每帧写进 --kara-p（0~1）。 */
+  .ls-kara-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--ls-cur-color);
+    --kara-p: 0;
+    -webkit-mask-image: linear-gradient(
+      to right,
+      #000 0,
+      #000 calc(var(--kara-p) * 100% - 0.7%),
+      transparent calc(var(--kara-p) * 100% + 0.7%)
+    );
+    mask-image: linear-gradient(
+      to right,
+      #000 0,
+      #000 calc(var(--kara-p) * 100% - 0.7%),
+      transparent calc(var(--kara-p) * 100% + 0.7%)
+    );
+  }
+
+  /* ---------- 模式四：散雪（唱完碎成雪粒被风吹散） ----------
+     画布铺满面板，碎片从字的位置往外飘、往下沉；落出面板底边就回收。
+     与其它三档不同：这一档的**整句也画在这块画布上**，所以它不是装饰层而是内容层
+     （.ls-track 在这一档由 applyMode 隐藏）；没词时同理让位给那行说明。
+     ⚠ `pointer-events: none` 不能省 —— 否则它会把整块面板的鼠标事件（包括那颗字号钮）全吃掉。 */
+  body.pure .ls-shatter,
+  .ls-shatter[hidden] { display: none; }
+  .ls-shatter {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  /* ---------- 字号钮：平时隐身，鼠标进面板才现 ---------- */
+  .ls-btn {
+    position: absolute;
+    right: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s ease;
+  }
+  body:hover .ls-btn { opacity: 0.5; }
+  .ls-btn:hover, .ls-btn:focus-visible { opacity: 0.95; background: rgba(127, 127, 127, 0.18); }
+
+  /* 配色钮：与字号钮并排（它在左）。钮里那颗点直接用当前的「正在唱」色，
+     所以它既是开关也是指示器 —— 不点也能一眼看出现在是什么配色。 */
+  .ls-btn.palette { right: 41px; }
+  .ls-dot {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--ls-cur-color);
+    box-shadow: 0 0 0 1.5px rgba(127, 127, 127, 0.4);
+  }
+</style>
+</head>
+<body>
+  <div class="ls-track" id="track">
+    <span class="ls-seg side prev" id="segPrev"></span>
+    <span class="ls-seg cur" id="segCur"></span>
+    <!-- 出句替身：与庭中同格叠放，只负责把上一句原地带走（见 @keyframes ls-out-mid） -->
+    <span class="ls-seg cur ls-ghost" id="segGhost"></span>
+    <span class="ls-seg side next" id="segNext"></span>
+  </div>
+  <div class="ls-flow" id="flow" hidden></div>
+  <div class="ls-kara" id="kara" hidden>
+    <span class="ls-kara-inner">
+      <span class="ls-kara-text ls-kara-base" id="karaBase"></span>
+      <span class="ls-kara-text ls-kara-fill" id="karaFill"></span>
+    </span>
+  </div>
+  <div class="ls-idle" id="idle" hidden></div>
+  <!-- 模式四「散雪」的画布：整句与碎屑都画在这里（压在其它层上、钮下面） -->
+  <canvas class="ls-shatter" id="shatter" hidden></canvas>
+  <button class="ls-btn" id="fontBtn" title="切换字号">A</button>
+  <button class="ls-btn palette" id="paletteBtn" title="切换歌词配色"><span class="ls-dot" id="paletteDot"></span></button>
+<script type="module" src="./assets/lyric-strip.js"></script>
+</body>
+</html>

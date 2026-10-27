@@ -1,0 +1,35 @@
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 打包与构建产物
+dist/
+*.tar.gz
+*.tgz
+
+# 本机运行数据（App 的 dataDir 在 HANA_HOME/app-data，万一有人在本目录调试也不带出去）
+app-data/
+.runtime-tmp/
+
+# 备份与临时文件
+*.bak
+*.bak-*
+*.orig
+*.rej
+*.part
+*.tmp
+*.log
+~$*
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 本地私有配置（如果将来加进来）
+.env
+.env.*
+!.env.example
+*.local.json

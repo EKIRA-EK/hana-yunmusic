@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>正在播放</title>
+<link rel="stylesheet" href="./assets/app.css" />
+</head>
+<body class="mini">
+  <div class="mini-top">
+    <span class="mini-cover" id="coverBox" title="打开完整页面">
+      <img id="cover" alt="" />
+      <span class="cover-empty" aria-hidden="true">
+        <svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-linecap="round">
+          <path d="M22 69.9C14 62 14 34 22 26.1" stroke-width="3.2" stroke-opacity=".3"/>
+          <path d="M29.6 63.4C24 58 24 38 29.6 32.6" stroke-width="2.6" stroke-opacity=".52"/>
+          <path d="M37.3 57C34 54 34 42 37.3 39" stroke-width="2" stroke-opacity=".78"/>
+          <path d="M74 69.9C82 62 82 34 74 26.1" stroke-width="3.2" stroke-opacity=".3"/>
+          <path d="M66.4 63.4C72 58 72 38 66.4 32.6" stroke-width="2.6" stroke-opacity=".52"/>
+          <path d="M58.7 57C62 54 62 42 58.7 39" stroke-width="2" stroke-opacity=".78"/>
+          <circle cx="48" cy="48" r="4.7" stroke="none"/>
+        </svg>
+      </span>
+    </span>
+    <span class="mini-meta">
+      <span class="mini-title" id="title" title="看播放列表">未在播放</span>
+      <span class="mini-sub" id="sub">—</span>
+    </span>
+  </div>
+
+  <div id="progBox">
+    <div class="mini-bar" id="bar" title="点击跳转"><i id="fill"></i></div>
+    <div class="mini-times"><span class="num" id="cur">0:00</span><span class="num" id="dur">0:00</span></div>
+  </div>
+
+  <!-- 就地列表：点作者/专辑后在这里出结果（宿主没给面板“把整页叫到前面”的能力，就不跳页了） -->
+  <div class="mini-list" id="listBox" hidden>
+    <div class="mini-list-head">
+      <button class="mini-back" id="listBack">← 返回</button>
+      <span class="mini-list-title" id="listTitle"></span>
+    </div>
+    <ul class="mini-rows" id="listRows"></ul>
+    <div class="mini-jump" id="jump" hidden>
+      <button class="mini-jump-btn locate" id="jumpCurrent" title="定位当前播放" aria-label="定位当前播放">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6.2"/><path d="M12 2.6v3.1M12 18.3v3.1M2.6 12h3.1M18.3 12h3.1"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="mini-jump-btn" id="jumpTop" title="到顶部（Home）" aria-label="到列表顶部">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5h12"/><path d="M12 19V9"/><path d="M8 13l4-4 4 4"/></svg>
+      </button>
+      <button class="mini-jump-btn" id="jumpBottom" title="到底部（End）" aria-label="到列表底部">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 19h12"/><path d="M12 5v10"/><path d="M8 11l4 4 4-4"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="mini-ctrl">
+    <button id="btnRepeat" class="aux" title="顺序播放（放完停）→ 列表循环（回首曲）→ 单曲循环（反复）" aria-label="循环模式"></button>
+    <button id="btnShuffle" class="aux" title="随机播放" aria-label="随机播放"></button>
+    <span class="spacer"></span>
+    <button id="btnPrev" title="上一首" aria-label="上一首"></button>
+    <button id="btnPlay" class="play" title="播放 / 暂停" aria-label="播放或暂停"></button>
+    <button id="btnNext" title="下一首" aria-label="下一首"></button>
+    <button id="btnStop" title="停止" aria-label="停止"></button>
+    <span class="spacer"></span>
+    <button id="btnLike" class="aux heart" title="红心" aria-label="红心"></button>
+  </div>
+
+  <div class="mini-vol" id="volRow">
+    <span>音量</span>
+    <input type="range" id="volume" min="0" max="100" step="1" value="70" aria-label="音量" />
+    <span class="num" id="volLabel">70</span>
+  </div>
+
+  <div class="mini-foot">
+    <span id="count"></span>
+    <span id="who"></span>
+    <button class="mini-open" id="btnPlaylists" title="看我的云歌单">云歌单</button>
+    <button class="mini-open" id="btnLyric" title="在输入框上方显示歌词" aria-pressed="false">歌词</button>
+    <span id="note"></span>
+  </div>
+
+<script type="module" src="./assets/mini.js"></script>
+</body>
+</html>

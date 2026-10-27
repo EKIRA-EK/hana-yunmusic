@@ -1,0 +1,33 @@
+# 默认按文本处理、统一 LF 存储（避免 Windows 的 autocrlf 把 sdk 里的原样文件改坏）
+* text=auto eol=lf
+
+# 明确的文本类型
+*.js    text eol=lf
+*.cjs   text eol=lf
+*.mjs   text eol=lf
+*.json  text eol=lf
+*.ts    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.svg   text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# 二进制，不做任何转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.gif   binary
+*.ico   binary
+*.exe   binary
+*.zip   binary
+*.woff  binary
+*.woff2 binary
+
+# 脚本换行符
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf

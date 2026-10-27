@@ -1,0 +1,65 @@
+{
+  "manifestVersion": 2,
+  "id": "hana-music163",
+  "name": "HANA云音乐",
+  "version": "0.18.71",
+  "description": "本机网易云音乐播放控制台：取源走 api-enhanced（由宿主托管运行时随 App 自启），声音可选页面 HTML5 audio 或 MPV（WASAPI 独占）双后端。整页与侧栏面板读同一份状态；自带环境自检与引导安装（包里带不了的取源服务 / mpv.exe 缺哪个就说哪个）。",
+  "entry": "index.js",
+  "icon": "assets/icon.webp",
+  "minAppVersion": "0.1050.9",
+  "capabilities": [
+    "app/tools.expose-to-model",
+    "app/runtime.execute",
+    "app/runtime.local-machine",
+    "app/runtime.network",
+    "app/input.panels",
+    "app/sessions.read"
+  ],
+  "network": {
+    "allowedHosts": [
+      "127.0.0.1",
+      "*.music.126.net",
+      "*.126.net"
+    ],
+    "allowLocalhost": true,
+    "methods": [
+      "GET",
+      "POST"
+    ],
+    "defaultTimeoutMs": 20000,
+    "maxResponseBytes": 8388608
+  },
+  "contributes": {
+    "cards": [
+      {
+        "id": "console",
+        "title": "云音乐",
+        "description": "网易云音乐播放控制台：封面、进度、播放控制、播放队列、搜索、歌词、云歌单、红心。",
+        "route": "/console.html",
+        "realization": "page",
+        "pageIcon": "assets/nav.svg",
+        "siteNavEntry": true,
+        "cardForm": "structural",
+        "face": {
+          "image": "assets/cover.webp"
+        },
+        "functionPanel": {
+          "id": "mini",
+          "label": "正在播放",
+          "route": "/mini.html"
+        }
+      },
+      {
+        "id": "now",
+        "title": "云音乐•Mini",
+        "description": "紧凑的播放面板：封面、进度、上一下一首与播放控制、音量。钉在工作台上当遥控器，不用打开整页。",
+        "route": "/mini.html",
+        "realization": "card",
+        "cardForm": "structural",
+        "face": {
+          "image": "assets/cover-mini.webp"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HANA云音乐</title>
+<link rel="stylesheet" href="./assets/app.css" />
+</head>
+<body class="console">
+<div class="console">
+  <aside class="player">
+    <div class="player-cover" id="coverBox">
+      <img id="cover" alt="" />
+      <span class="cover-empty" aria-hidden="true">
+        <svg viewBox="0 0 96 96" fill="none" stroke="currentColor" stroke-linecap="round">
+          <path d="M22 69.9C14 62 14 34 22 26.1" stroke-width="3.2" stroke-opacity=".3"/>
+          <path d="M29.6 63.4C24 58 24 38 29.6 32.6" stroke-width="2.6" stroke-opacity=".52"/>
+          <path d="M37.3 57C34 54 34 42 37.3 39" stroke-width="2" stroke-opacity=".78"/>
+          <path d="M74 69.9C82 62 82 34 74 26.1" stroke-width="3.2" stroke-opacity=".3"/>
+          <path d="M66.4 63.4C72 58 72 38 66.4 32.6" stroke-width="2.6" stroke-opacity=".52"/>
+          <path d="M58.7 57C62 54 62 42 58.7 39" stroke-width="2" stroke-opacity=".78"/>
+          <circle cx="48" cy="48" r="4.7" stroke="none"/>
+        </svg>
+      </span>
+    </div>
+
+    <div class="track">
+      <h1 id="title">未在播放</h1>
+      <p id="sub">—</p>
+      <span class="badge off" id="badge"><i class="dot"></i><span id="status">未在播放</span></span>
+    </div>
+
+    <div class="barwrap" id="barwrap" title="点击或拖动跳转">
+      <div class="bar"><i id="fill"></i></div>
+    </div>
+    <div class="times"><span class="num" id="cur">0:00</span><span class="num" id="dur">0:00</span></div>
+
+    <div class="ctrl">
+      <button id="btnRepeat" class="aux" title="顺序播放（放完停）→ 列表循环（回首曲）→ 单曲循环（反复）" aria-label="循环模式"></button>
+      <button id="btnShuffle" class="aux" title="随机播放" aria-label="随机播放"></button>
+      <button id="btnPrev" title="上一首" aria-label="上一首"></button>
+      <button id="btnPlay" class="play" title="播放 / 暂停" aria-label="播放或暂停"></button>
+      <button id="btnNext" title="下一首" aria-label="下一首"></button>
+      <button id="btnStop" title="停止" aria-label="停止"></button>
+      <button id="btnLike" class="heart" title="红心" aria-label="红心"></button>
+    </div>
+
+    <div class="underrow">
+      <span>音量</span>
+      <input type="range" id="volume" min="0" max="100" step="1" value="70" aria-label="音量" />
+      <span class="num" id="volLabel">70</span>
+    </div>
+
+    <div class="underrow">
+      <span>音质</span>
+      <select id="level" aria-label="音质档">
+        <option value="standard">标准</option>
+        <option value="higher">较高</option>
+        <option value="exhigh" selected>极高 320k</option>
+        <option value="lossless">无损</option>
+        <option value="hires">Hi-Res</option>
+      </select>
+      <span>输出</span>
+      <select id="backend" aria-label="播放后端">
+        <option value="audio" selected>界面播放</option>
+        <option value="mpv">MPV 高保真</option>
+      </select>
+    </div>
+
+    <div class="underrow">
+      <span>下载</span>
+      <select id="dlLevel" aria-label="下载音质">
+        <option value="standard">标准 128K</option>
+        <option value="exhigh">320K MP3</option>
+        <option value="lossless" selected>无损 FLAC</option>
+        <option value="hires">Hi-Res FLAC</option>
+      </select>
+      <button class="mini-btn" id="btnDownloadAll" title="把播放列表整单下到本地">整单下载</button>
+    </div>
+
+    <!-- 封面与目录（2026-10-22）：封面默认取小图，可切原图或不下载 -->
+    <div class="underrow">
+      <span>封面</span>
+      <select id="dlCover" aria-label="封面尺寸">
+        <option value="small">小图 500px</option>
+        <option value="original">原图</option>
+        <option value="none">不下载</option>
+      </select>
+      <button class="mini-btn" id="btnDownloadDir" title="在资源管理器里打开下载目录">目录</button>
+    </div>
+    <p class="hint" id="dlDirHint"></p>
+
+    <!-- 未登录时为什么要灰档，写在这儿（option 上的 title 在 Chromium 里不弹） -->
+    <p class="hint" id="dlLevelHint" hidden></p>
+
+    <p class="hint" id="dlHint" hidden></p>
+
+    <div class="underrow" id="mpvRow" hidden>
+      <span>MPV 设备</span>
+      <select id="mpvDevice" aria-label="MPV 输出设备"></select>
+      <label class="mpv-excl"><input type="checkbox" id="mpvExclusive" />独占</label>
+    </div>
+
+    <p class="hint" id="outHint" hidden></p>
+
+    <p class="note" id="note"></p>
+  </aside>
+
+  <section class="panel">
+    <!-- 环境未就绪时的引导条（v0.16.0）：包里带不了的那两个依赖缺一个就显形 -->
+    <div class="envbar" id="envBar" hidden>
+      <span class="envbar-dot" aria-hidden="true"></span>
+      <span class="envbar-txt" id="envBarText"></span>
+      <button class="mini-btn" id="envBarBtn">环境自检</button>
+    </div>
+    <div class="tabs" id="tabs">
+      <button data-tab="queue" class="on">播放列表<span class="count" id="queueCount"></span></button>
+      <button data-tab="search">搜索</button>
+      <button data-tab="lyric">歌词</button>
+      <button data-tab="playlist">云歌单</button>
+      <button data-tab="local">本地</button>
+      <span class="spacer"></span>
+      <button class="mini-btn" id="btnDaily">每日推荐</button>
+      <button class="mini-btn" id="btnFavorite">我喜欢的</button>
+      <button class="mini-btn" id="btnEnv" title="环境自检：取源服务 api-enhanced / mpv.exe">环境</button>
+      <button class="mini-btn acct-btn" id="btnAccount">登录</button>
+    </div>
+
+    <div class="pane on" id="pane-queue">
+      <ul class="list" id="queueList"></ul>
+      <div class="empty" id="queueEmpty">队列为空。<br />先搜一首歌，或点「每日推荐」。</div>
+    </div>
+
+    <div class="pane" id="pane-search">
+      <div class="searchbar">
+        <input type="search" id="kw" placeholder="搜索歌曲，回车开始" autocomplete="off" />
+        <button id="btnSearch">搜索</button>
+      </div>
+      <div class="hint" id="searchHint"></div>
+      <ul class="list" id="searchList"></ul>
+    </div>
+
+    <div class="pane" id="pane-lyric">
+      <div class="hint" id="lyricHint"></div>
+      <div class="lyric" id="lyricBody"></div>
+    </div>
+
+    <div class="pane" id="pane-playlist">
+      <div class="pl-head" id="plHead" hidden>
+        <button class="mini-btn" id="plBack">← 云歌单</button>
+        <span class="pl-title" id="plTitle"></span>
+        <span class="spacer"></span>
+        <button class="mini-btn" id="plPlayAll">整单播放</button>
+      </div>
+      <div class="hint" id="plHint"></div>
+      <ul class="list" id="plList"></ul>
+    </div>
+
+    <div class="pane" id="pane-local">
+      <div class="hint" id="localHint"></div>
+      <ul class="list" id="localList"></ul>
+    </div>
+
+    <div class="jump" id="jump" hidden>
+      <button class="jump-btn locate" id="jumpCurrent" title="定位当前播放" aria-label="定位当前播放">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6.2"/><path d="M12 2.6v3.1M12 18.3v3.1M2.6 12h3.1M18.3 12h3.1"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="jump-btn" id="jumpTop" title="到顶部（Home）" aria-label="到列表顶部">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 5h12"/><path d="M12 19V9"/><path d="M8 13l4-4 4 4"/></svg>
+      </button>
+      <button class="jump-btn" id="jumpBottom" title="到底部（End）" aria-label="到列表底部">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 19h12"/><path d="M12 5v10"/><path d="M8 11l4 4 4-4"/></svg>
+      </button>
+    </div>
+  </section>
+</div>
+
+<div class="modal" id="loginModal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="账号">
+    <button class="modal-close" id="loginClose" aria-label="关闭">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M7 7l10 10M17 7L7 17"/></svg>
+    </button>
+    <div class="login-body" id="loginBody"></div>
+  </div>
+</div>
+
+<div class="modal" id="envModal" hidden>
+  <div class="modal-card env-card" role="dialog" aria-modal="true" aria-label="环境自检">
+    <button class="modal-close" id="envClose" aria-label="关闭">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M7 7l10 10M17 7L7 17"/></svg>
+    </button>
+    <h2 class="env-title">环境自检</h2>
+    <p class="env-sub" id="envSub">正在检查…</p>
+    <ul class="env-list" id="envList"></ul>
+    <div class="env-log" id="envLog" hidden><pre id="envLogBody"></pre></div>
+    <div class="env-foot">
+      <button class="mini-btn" id="envRescan">再检查一次</button>
+      <span class="env-note" id="envNote"></span>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./assets/console.js"></script>
+</body>
+</html>
