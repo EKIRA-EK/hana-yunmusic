@@ -15,9 +15,10 @@
  *   「App 进程自己 spawn」时才需要。
  *
  * 目录定位按候选顺序找，避免依赖 cwd：
- *   1. HANA_MUSIC163_API_DIR（手动调试用）
+ *   1. HANA_MUSIC_API_DIR（手动调试用；旧变量名 HANA_MUSIC163_API_DIR 仍兼容）
  *   2. <cwd>/api-enhanced（宿主默认 cwd 是本 App 的 dataDir）
- *   3. <HANA_HOME>/app-data/hana-music163/api-enhanced（由安装目录反推）
+ *   3. <HANA_HOME>/app-data/hana-yunmusic/api-enhanced（由安装目录反推）
+ *   4. <HANA_HOME>/app-data/hana-music163/api-enhanced（**旧 id 的目录**，2026-10-30 改名前的）
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -26,9 +27,12 @@ process.env.PORT = process.env.PORT || "3300";
 process.env.HOST = process.env.HOST || "127.0.0.1";
 
 const candidates = [
+  process.env.HANA_MUSIC_API_DIR,
   process.env.HANA_MUSIC163_API_DIR,
   path.join(process.cwd(), "api-enhanced"),
-  path.join(__dirname, "..", "..", "app-data", "hana-music163", "api-enhanced"),
+  path.join(__dirname, "..", "..", "..", "app-data", "hana-yunmusic", "api-enhanced"),
+  /* 改名（2026-10-30）前装在旧 id 目录下的那一份，130MB / 1.7 万文件，不必让人重装。 */
+  path.join(__dirname, "..", "..", "..", "app-data", "hana-music163", "api-enhanced"),
 ].filter(Boolean);
 
 const dir = candidates.find((candidate) => {
@@ -41,10 +45,10 @@ const dir = candidates.find((candidate) => {
 
 if (!dir) {
   console.error(
-    "[hana-music163] 找不到 api-enhanced 目录，以下候选里都没有 app.js：\n  " + candidates.join("\n  "),
+    "[hana-yunmusic] 找不到 api-enhanced 目录，以下候选里都没有 app.js：\n  " + candidates.join("\n  "),
   );
   process.exit(1);
 }
 
-console.log("[hana-music163] 取源服务目录：" + dir);
+console.log("[hana-yunmusic] 取源服务目录：" + dir);
 require(path.join(dir, "app.js"));

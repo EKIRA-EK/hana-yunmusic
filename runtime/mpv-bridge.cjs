@@ -57,7 +57,7 @@ const { spawn, spawnSync } = require("node:child_process");
 
 const PORT = Number(process.env.MPV_BRIDGE_PORT || "3310");
 const HOST = process.env.MPV_BRIDGE_HOST || "127.0.0.1";
-const PIPE = process.env.MPV_IPC_PIPE || "\\\\.\\pipe\\hana-music163-mpv";
+const PIPE = process.env.MPV_IPC_PIPE || "\\\\.\\pipe\\hana-yunmusic-mpv";
 const EXTRA_ARGS_FROM_ENV = String(process.env.MPV_EXTRA_ARGS || "").split(/\s+/).filter(Boolean);
 const READY_MARKER = "MPV_BRIDGE_READY";
 
@@ -69,7 +69,9 @@ function configCandidates() {
   return [
     process.env.MPV_CONFIG,
     path.join(process.cwd(), "mpv.json"),
-    path.join(__dirname, "..", "..", "app-data", "hana-music163", "mpv.json"),
+    path.join(__dirname, "..", "..", "..", "app-data", "hana-yunmusic", "mpv.json"),
+    /* 旧 id 目录（2026-10-30 改名前的），让设备/独占这些配置不用重设。 */
+    path.join(__dirname, "..", "..", "..", "app-data", "hana-music163", "mpv.json"),
   ].filter(Boolean);
 }
 

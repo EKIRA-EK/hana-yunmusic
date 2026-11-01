@@ -68,14 +68,17 @@
     </div>
 
     <div class="underrow">
-      <span>下载</span>
-      <select id="dlLevel" aria-label="下载音质">
+      <span>缓存</span>
+      <label class="chk" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+        <input type="checkbox" id="cacheOnPlay" />
+        <span>播放时自动</span>
+      </label>
+      <select id="dlLevel" aria-label="缓存音质">
         <option value="standard">标准 128K</option>
         <option value="exhigh">320K MP3</option>
         <option value="lossless" selected>无损 FLAC</option>
         <option value="hires">Hi-Res FLAC</option>
       </select>
-      <button class="mini-btn" id="btnDownloadAll" title="把播放列表整单下到本地">整单下载</button>
     </div>
 
     <!-- 封面与目录（2026-10-22）：封面默认取小图，可切原图或不下载 -->
@@ -86,7 +89,11 @@
         <option value="original">原图</option>
         <option value="none">不下载</option>
       </select>
-      <button class="mini-btn" id="btnDownloadDir" title="在资源管理器里打开下载目录">目录</button>
+      <button class="mini-btn" id="btnDownloadDir" title="在资源管理器里打开缓存目录">目录</button>
+      <span style="margin-left:auto">上限</span>
+      <input type="number" id="cacheLimit" min="0" step="0.5" value="1"
+             title="缓存目录上限，单位 GB；填 0 表示不限" />
+      <span>GB</span>
     </div>
     <p class="hint" id="dlDirHint"></p>
 
@@ -94,6 +101,8 @@
     <p class="hint" id="dlLevelHint" hidden></p>
 
     <p class="hint" id="dlHint" hidden></p>
+    <!-- 缓存队列（2026-10-31）：进行中与排队中的逐条列出，不用点开别处才看得到 -->
+    <div class="cache-list" id="cacheList" hidden></div>
 
     <div class="underrow" id="mpvRow" hidden>
       <span>MPV 设备</span>

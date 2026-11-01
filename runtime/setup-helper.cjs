@@ -18,7 +18,8 @@
  * 环境变量：
  *   SETUP_HELPER_PORT  默认 3330
  *   SETUP_HELPER_HOST  默认 127.0.0.1
- *   HANA_MUSIC163_DATA_DIR  数据目录（默认 cwd，宿主拉起时 cwd 就是 App 的 dataDir）
+ *   HANA_MUSIC_DATA_DIR  数据目录（默认 cwd，宿主拉起时 cwd 就是 App 的 dataDir）
+ *   （旧变量名 HANA_MUSIC163_DATA_DIR / HANA_MUSIC163_API_DIR 仍兼容）
  */
 const http = require("node:http");
 const fs = require("node:fs");
@@ -29,7 +30,7 @@ const PORT = Number(process.env.SETUP_HELPER_PORT || "3330");
 const HOST = process.env.SETUP_HELPER_HOST || "127.0.0.1";
 const READY_MARKER = "SETUP_HELPER_READY";
 
-const DATA_DIR = process.env.HANA_MUSIC163_DATA_DIR || process.cwd();
+const DATA_DIR = process.env.HANA_MUSIC_DATA_DIR || process.env.HANA_MUSIC163_DATA_DIR || process.cwd();
 const API_DIR = path.join(DATA_DIR, "api-enhanced");
 
 /* mpv.json 的定位顺序：优先用已经存在的那份；都不存在时落到 DATA_DIR 那一份。
@@ -63,8 +64,11 @@ const MPV_CANDIDATES = [
 ].filter(Boolean);
 
 const API_CANDIDATES = [
+  process.env.HANA_MUSIC_API_DIR,
   process.env.HANA_MUSIC163_API_DIR,
   path.join(process.cwd(), "api-enhanced"),
+  path.join(HANA_HOME, "app-data", "hana-yunmusic", "api-enhanced"),
+  /* 改名（2026-10-30）前的旧目录：已装的那份直接沿用，不必重装。 */
   path.join(HANA_HOME, "app-data", "hana-music163", "api-enhanced"),
 ].filter(Boolean);
 

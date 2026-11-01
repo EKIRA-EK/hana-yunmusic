@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { defineApp } from "./sdk/app-contract/server-client.js";
 
 import { DEFAULT_BASE, createApi } from "./lib/api.js";
@@ -9,8 +11,19 @@ import { createMpvClient } from "./lib/mpv.js";
 import { registerRoutes } from "./lib/routes.js";
 import { createLyricStrip } from "./lib/lyric-strip.js";
 import { createSetup } from "./lib/setup.js";
+import { createAmll } from "./lib/amll.js";
 
-export const name = "hana-music163";
+export const name = "hana-yunmusic";
+
+/* 日志里的版本号从 manifest 读，别再写死（曾经一直写着 v0.4）。 */
+const APP_VERSION = (() => {
+  try {
+    const raw = readFileSync(new URL("./manifest.json", import.meta.url), "utf8");
+    return String(JSON.parse(raw).version || "");
+  } catch {
+    return "";
+  }
+})();
 
 const COOKIE_KEY = "netease-cookie";
 const STATE_KEY = "player-v2";
@@ -30,7 +43,7 @@ export default defineApp(async (sdk) => {
     try {
       await storage.set(key, value);
     } catch (error) {
-      await sdk.logger.warn("hana-music163: 写本地状态失败", String((error && error.message) || error));
+      await sdk.logger.warn("hana-yunmusic: 写本地状态失败", String((error && error.message) || error));
     }
   }
 
@@ -64,6 +77,8 @@ export default defineApp(async (sdk) => {
   downloader.init(await read("download-v1", null));
 
   const covers = createCoverCache({ ctx: sdk, dataDir: sdk.dataDir, logger: sdk.logger });
+  /* 逐字的补位来源：网易云没给就按需问 AMLL（命中缓存在 dataDir/amll-cache）。 */
+  const amll = createAmll({ ctx: sdk, dataDir: sdk.dataDir, logger: sdk.logger });
 
   const session = {
     profile: null,
@@ -82,6 +97,9 @@ export default defineApp(async (sdk) => {
   });
   const savedState = await read(STATE_KEY, null);
   await player.init(savedState);
+  /* 播放时自动缓存（2026-10-30）：钩子必须挂在 player 创建**之后**（写在前头会 TDZ，
+     “Cannot access 'player' before initialization”——首次安装就撞上了）。 */
+  player.setOnPlay((song) => downloader.autoCache(song));
   // 上次退出时停在 mpv 后端，就把桥起回来
   if (savedState && savedState.backend === "mpv") mpvBridge.ensure().catch(() => null);
 
@@ -112,12 +130,12 @@ export default defineApp(async (sdk) => {
   // 另开一个新端口会被宿主拦（踩过：ERR_ACCESS_DENIED，详见 runtime/setup-helper.cjs）。
   const setup = createSetup({ logger: sdk.logger, helper: downloaderService, source, api, dataDir: sdk.dataDir, net: sdk.network });
 
-  registerRoutes(sdk, player, api, covers, session, source, mpvBridge, mpv, downloader, lyricStrip, setup);
+  registerRoutes(sdk, player, api, covers, session, source, mpvBridge, mpv, downloader, lyricStrip, setup, amll);
 
   await sdk.tools.register({
     name: "ncm_music",
     description:
-      "控制 HANA 界面里的网易云音乐播放。action=state 看当前曲目；action=play 用 query 搜索并播放；action=search 只列候选；action=queue 列播放队列；action=level 切换音质（standard/higher/exhigh/lossless/hires）；action=like 红心；action=lyric-strip 在**最近活跃的 5 个会话**的输入框上方开/关歌词条（on=true 开、false 关；mode=shatter 散雪（唱完胀一下再碎成雪粒被风吹散）/ center 居盈（中位固定）/ scroll 行云（横向流动）/ karaoke 尽染（逐字上色）；font 切当前句字号 20/24/30/36；height 调面板高度 32–240；palette 切配色 theme/clay/teal/ink/sage/whale）；action=setup 环境自检（缺什么、怎么补；可带 install/src/mpvPath 直接发起安装）；action=pause/resume/next/prev/stop 播控。画面与侧栏由「HANA云音乐」应用负责，这里只回文本结果。",
+      "控制 HANA 界面里的音乐播放。action=state 看当前曲目；action=play 用 query 搜索并播放；action=search 只列候选；action=queue 列播放队列；action=level 切换音质（standard/higher/exhigh/lossless/hires）；action=like 红心；action=lyric-strip 在**最近活跃的 5 个会话**的输入框上方开/关歌词条（on=true 开、false 关；mode=shatter 傲雪（傲雪随风，唱完胀一下再碎成雪粒被风吹散）/ center 居盈（居中盈满）/ scroll 行云（行云流水）/ karaoke 尽染（层云尽染）；font 切当前句字号 20/24/30/36；height 调面板高度 32–240；palette 切配色 theme/clay/teal/ink/sage/whale）；action=setup 环境自检（缺什么、怎么补；可带 install/src/mpvPath 直接发起安装）；action=pause/resume/next/prev/stop 播控。画面与侧栏由「HANA云听听」应用负责，这里只回文本结果。",
     parameters: {
       type: "object",
       properties: {
@@ -130,7 +148,7 @@ export default defineApp(async (sdk) => {
         level: { type: "string", description: "action=level 时的音质档：standard/higher/exhigh/lossless/hires。" },
         limit: { type: "number", description: "action=search 时的候选数量，默认 10，最大 20。" },
         on: { type: "boolean", description: "action=lyric-strip 时：true 打开输入框上方的歌词条（默认），false 收起。" },
-        mode: { type: "string", enum: ["shatter", "center", "scroll", "karaoke"], description: "action=lyric-strip 时：歌词显示方式（也是循环切换的顺序）。shatter=散雪（唱完胀一下再碎成雪粒被风吹散），center=居盈（中位固定），scroll=行云（横向流动），karaoke=尽染（逐字上色）。不传就不改。" },
+        mode: { type: "string", enum: ["shatter", "center", "scroll", "karaoke"], description: "action=lyric-strip 时：歌词显示方式（也是循环切换的顺序）。shatter=傲雪（傲雪随风，唱完胀一下再碎成雪粒被风吹散），center=居盈（居中盈满），scroll=行云（行云流水），karaoke=尽染（层云尽染）。不传就不改。" },
         font: { type: "number", description: "action=lyric-strip 时：当前句字号（20 / 24 / 30 / 36；会同时把面板高度调到配套值）。不传就不改。" },
         height: { type: "number", description: "action=lyric-strip 时：面板高度（32–240，默认 76）。改它会立即生效，不用重挂面板。" },
         palette: {
@@ -162,7 +180,7 @@ export default defineApp(async (sdk) => {
         } else if (a === "queue") {
           const q = player.queueView();
           text = q.items.length
-            ? q.items.map((i) => `${i.index}. ${i.title} - ${i.artist}${i.current ? "（当前）" : ""}`).join("\n")
+            ? q.items.map((i) => `${i.index}. ${i.name} - ${i.artist}${i.current ? "（当前）" : ""}`).join("\n")
             : "播放队列为空。";
         } else if (a === "search") {
           const limit = Math.min(20, Math.max(1, Number(args.limit) || 10));
@@ -247,7 +265,7 @@ export default defineApp(async (sdk) => {
   });
 
   await sdk.logger.info(
-    "hana-music163 v0.4 loaded",
+    `hana-yunmusic${APP_VERSION ? " v" + APP_VERSION : ""} loaded`,
     JSON.stringify({
       base: DEFAULT_BASE,
       loggedIn: !!api.getCookie(),

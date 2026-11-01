@@ -1,6 +1,6 @@
 /* HANA云音乐 — 页面共用小工具：后端调用、封面地址、主题跟随、格式化。 */
 
-export const APP_ID = (location.pathname.match(/^\/api\/apps\/([^/]+)\//) || [])[1] || "hana-music163";
+export const APP_ID = (location.pathname.match(/^\/api\/apps\/([^/]+)\//) || [])[1] || "hana-yunmusic";
 export const SESSION = new URLSearchParams(location.search).get("appSurfaceSession") || "";
 // 脱离宿主（浏览器直开）时用 URL 里的 token 兜底；真实宿主走上面的 appSurfaceSession，这条不触发。
 const TOKEN = new URLSearchParams(location.search).get("token") || "";

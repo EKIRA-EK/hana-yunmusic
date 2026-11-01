@@ -43,7 +43,7 @@ const { handleSetupRequest } = require("./setup-helper.cjs");
 const PORT = Number(process.env.MUSIC_DL_PORT || "3320");
 const HOST = process.env.MUSIC_DL_HOST || "127.0.0.1";
 const READY_MARKER = "MUSIC_DL_READY";
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) hana-music163-downloader";
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) hana-yunmusic-downloader";
 const TIMEOUT_MS = 10 * 60 * 1000; // 单个文件上限 10 分钟
 const MAX_ATTEMPTS = 2;
 const KEEP_DONE_MS = 30 * 60 * 1000; // 完成的任务留 30 分钟给界面看
@@ -164,7 +164,8 @@ async function writeSidecars(job) {
 /** 暂停时把待下的任务挪到这里（2026-10-23）。不用全局暂停标：
  *  把 queue 抽空就自然停了，running 那首下完也不会再拉下一首；继续时倒回去再 pump。 */
 const parked = [];
-
+/** 目录占用的缓存（2026-10-30）：自动缓存限额靠它，60 秒内不重算。 */
+const usageCache = { dir: "", at: 0, value: null };
 async function pump() {
   if (running) return;
   const job = queue.shift();
@@ -368,6 +369,28 @@ const server = http.createServer(async (req, res) => {
       pump();
       return send(200, { ok: true, resumed: back.length });
     }
+    /* 按 id 撤掉**还没开始**的任务（2026-10-30）：关掉「播放时自动缓存」时要能把排队中那一批抽掉。
+       正在下的那首不动 —— 中途砍断会留半截文件，而且几 MB 一两秒就完。 */
+    if (route === "/drop" && method === "POST") {
+      const payload = JSON.parse((await readBody(req)) || "{}");
+      const ids = new Set((payload.ids || []).map(String));
+      if (!ids.size) return send(400, { ok: false, error: "缺少 ids" });
+      let dropped = 0;
+      for (let i = queue.length - 1; i >= 0; i -= 1) {
+        if (ids.has(String(queue[i].id))) {
+          queue.splice(i, 1);
+          dropped += 1;
+        }
+      }
+      for (let i = parked.length - 1; i >= 0; i -= 1) {
+        if (ids.has(String(parked[i].id))) {
+          parked.splice(i, 1);
+          dropped += 1;
+        }
+      }
+      const stillRunning = running && ids.has(String(running.id)) ? 1 : 0;
+      return send(200, { ok: true, dropped, running: stillRunning });
+    }
 
     /* HANA 字体库索引（2026-10-23）：读 ~/.hanako/font-library/registry.json，
        把用户导入的字体报给界面（origin=user 的那批）。
@@ -434,8 +457,7 @@ const server = http.createServer(async (req, res) => {
       const job = newJob(target, dest, payload);
       return send(200, { ok: true, id: job.id, path: job.dest });
     }
-    if (route === "/open" && method === "POST") {
-      const payload = JSON.parse((await readBody(req)) || "{}");
+    if (route === "/open" && method === "POST") {      const payload = JSON.parse((await readBody(req)) || "{}");
       const dir = String(payload.dir || "");
       if (!dir) return send(400, { ok: false, error: "缺少 dir" });
       // 目录还不存在就先建出来（用户第一次点「打开目录」时很常见）
@@ -444,6 +466,87 @@ const server = http.createServer(async (req, res) => {
       const child = spawn(exe, [dir], { detached: true, stdio: "ignore" });
       child.unref();
       return send(200, { ok: true, dir });
+    }
+    /* 目录占用（2026-10-30）：算整棵目录（含封面歌词），用于自动缓存的限额判断。
+       应用进程读不到用户目录（权限只覆盖 dataDir），所以由这里算。 */
+    if (route === "/usage" && method === "GET") {
+      const dir = String(url.searchParams.get("dir") || "");
+      if (!dir) return send(400, { ok: false, error: "缺少 dir" });
+      const now = Date.now();
+      if (usageCache.dir === dir && now - usageCache.at < 60000 && usageCache.value) {
+        return send(200, Object.assign({ ok: true, cached: true }, usageCache.value));
+      }
+      let bytes = 0;
+      let files = 0;
+      const walk = async (folder) => {
+        const entries = await fsp.readdir(folder, { withFileTypes: true }).catch(() => []);
+        for (const ent of entries) {
+          const full = path.join(folder, ent.name);
+          if (ent.isDirectory()) {
+            await walk(full);
+            continue;
+          }
+          if (!ent.isFile()) continue;
+          const st = await fsp.stat(full).catch(() => null);
+          if (st) {
+            bytes += st.size;
+            files += 1;
+          }
+        }
+      };
+      await walk(dir);
+      usageCache.dir = dir;
+      usageCache.at = now;
+      usageCache.value = { bytes, files };
+      return send(200, { ok: true, bytes, files });
+    }
+    /* 补写归档（2026-10-31）：异羽清过「封面歌词」后，本地歌就没词没封面了。
+       应用进程写不了用户目录，所以由这里代写；内容由应用层从在线接口取得。 */
+    if (route === "/sidecar" && method === "POST") {
+      const payload = JSON.parse((await readBody(req)) || "{}");
+      const dir = String(payload.dir || "");
+      const stem = String(payload.stem || "");
+      if (!dir || !stem) return send(400, { ok: false, error: "缺少 dir 或 stem" });
+      const sdir = path.join(dir, "封面歌词", stem);
+      await fsp.mkdir(sdir, { recursive: true }).catch(() => null);
+      const wrote = [];
+      if (payload.coverUrl) {
+        try {
+          const res = await fetch(String(payload.coverUrl));
+          if (res.ok) {
+            const buf = Buffer.from(await res.arrayBuffer());
+            if (buf.length) {
+              await fsp.writeFile(path.join(sdir, "cover.jpg"), buf);
+              wrote.push("cover");
+            }
+          }
+        } catch {
+          /* 封面失败不影响词 */
+        }
+      }
+      if (payload.lyric) {
+        await fsp.writeFile(path.join(sdir, "lyrics.lrc"), String(payload.lyric), "utf8").catch(() => null);
+        wrote.push("lrc");
+      }
+      if (payload.yrc) {
+        await fsp.writeFile(path.join(sdir, "lyrics.yrc"), String(payload.yrc), "utf8").catch(() => null);
+        wrote.push("yrc");
+      }
+      if (payload.meta) {
+        await fsp.writeFile(path.join(sdir, "meta.json"), JSON.stringify(payload.meta, null, 2), "utf8").catch(() => null);
+        wrote.push("meta");
+      }
+      usageCache.at = 0; // 目录变了，占用缓存作废
+      return send(200, { ok: true, dir: sdir, wrote });
+    }
+    /* 归档夹列表（2026-10-31）：删了音频重下时，靠它把**原序号**捡回来 ——
+       否则 007 xxx 会变成 xxx，序号一丢，列表顺序也跟着变。 */
+    if (route === "/stems" && method === "GET") {
+      const dir = String(url.searchParams.get("dir") || "");
+      if (!dir) return send(400, { ok: false, error: "缺少 dir" });
+      const root = path.join(dir, "封面歌词");
+      const entries = await fsp.readdir(root, { withFileTypes: true }).catch(() => []);
+      return send(200, { ok: true, items: entries.filter((e) => e.isDirectory()).map((e) => e.name) });
     }
     if (route === "/list" && method === "GET") {
       const dir = String(url.searchParams.get("dir") || "");
@@ -455,13 +558,34 @@ const server = http.createServer(async (req, res) => {
         return !!(st && st.isFile());
       };
       /* 音频平铺在根下；封面/歌词/ meta 在 `<dir>\\封面歌词\\<同名>\\`（2026-10-22 用户定的）。
-         两边用「去扩展名的文件名」对起来写，所以改档位重下也不会错位。 */
+         两边用「去扩展名的文件名」对起来写，所以改档位重下也不会错位。
+         2026-10-30：异羽把音频收进了子文件夹（「新建文件夹」），只扫根下就一首也找不到；
+         现在根下 + **一层子目录**都扫，跳过「封面歌词」（那里只有封面与词）。同名以根下优先。 */
       const sidecarRoot = path.join(dir, "封面歌词");
+      const audioFiles = new Map();
+      const takeAudio = async (folder, name) => {
+        const full = path.join(folder, name);
+        const stat = await fsp.stat(full).catch(() => null);
+        return stat && stat.isFile() ? { name, full, stat } : null;
+      };
       for (const name of names) {
-        if (!AUDIO_EXT.has(path.extname(name).toLowerCase())) continue;
         const full = path.join(dir, name);
         const stat = await fsp.stat(full).catch(() => null);
-        if (!stat || !stat.isFile()) continue;
+        if (stat && stat.isFile()) {
+          if (!AUDIO_EXT.has(path.extname(name).toLowerCase())) continue;
+          if (!audioFiles.has(name)) audioFiles.set(name, { name, full, stat });
+          continue;
+        }
+        if (stat && stat.isDirectory() && name !== "封面歌词") {
+          const subNames = await fsp.readdir(full).catch(() => []);
+          for (const sub of subNames) {
+            if (!AUDIO_EXT.has(path.extname(sub).toLowerCase())) continue;
+            const hit = await takeAudio(full, sub);
+            if (hit && !audioFiles.has(sub)) audioFiles.set(sub, hit);
+          }
+        }
+      }
+      for (const { name, full, stat } of audioFiles.values()) {
         const stem = name.replace(/\.[^.]+$/, "");
         const sdir = path.join(sidecarRoot, stem);
         const cover = path.join(sdir, "cover.jpg");

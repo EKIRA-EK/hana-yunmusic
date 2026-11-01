@@ -72,8 +72,10 @@ button {
   cursor: pointer;
 }
 
-button:focus-visible,
-input:focus-visible {
+/* 只给按钮留自定义焦点环（2026-10-31）：以前 input 也在这条里 → 数字框聚焦是 1px 绿描边，
+   下拉（select）不在规则里、走浏览器默认焦点环（异羽说“有点金边的感觉，好看”）。
+   把 input 移出去，两者就都是同一套默认环了。 */
+button:focus-visible {
   outline: 1px solid var(--accent);
   outline-offset: 2px;
 }
@@ -1188,21 +1190,74 @@ select optgroup {
 #lyricFamily:hover {
   border-color: var(--accent);
 }
-.underrow select {
-  appearance: none;
+.underrow select,
+.underrow input[type="number"] {
   height: 26px;
-  /* 右边 22px 是留给箭头的：原生/自画的箭头都画在框上，字不认识它，得主动让位 */
-  padding: 0 22px 0 8px;
-  font-size: 12px;
   border: 1px solid var(--edge-soft);
   border-radius: 8px;
   background-color: var(--paper-sink);
+  color: var(--ink);
+  font-size: 12px;
+  font-family: inherit;
+}
+.underrow select {
+  appearance: none;
+  /* 右边 22px 是留给箭头的：原生/自画的箭头都画在框上，字不认识它，得主动让位 */
+  padding: 0 22px 0 8px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 6px center;
   background-size: 12px 12px;
   cursor: pointer;
 }
+
+/* 下拉与数字框共用一套外壳（2026-10-30）：异羽两次指出“边框不统一 / 还是不一样”，
+   单品对变量的做法总会漏掉一两个属性。这里把两者合并到同一个选择器上，
+   只把箭头、宽度、内边距这些真正不同的部分分开写。 */
+.underrow input[type="number"] {
+  /* 2026-10-31：原来 4.2em 放不下 “10.0”，显得拘束；下拉那个宽度看着舒展，这里跟着放大。 */
+  width: 5.4em;
+  padding: 0 8px;
+  text-align: center;
+  /* 去掉数字框自带的上下微调小箭头 —— 它在深色下是一块白圆饼，把数字挤到一边，也比旁边下拉跳。 */
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.underrow input[type="number"]::-webkit-outer-spin-button,
+.underrow input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+/* 聚焦态不要再自己染色（2026-10-31）：上一版给这里写了 `outline:none` + 主题色边框，
+   而异羽看到那个好看的白边其实是浏览器/宿主的**默认焦点环**（下拉点开时就是它）。
+   两边都交回默认，就不会一个白一个绿。 */
+
+/* 缓存队列（2026-10-31）：排着的那几首逐条列出来，最多 6 行。 */
+.cache-list {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cache-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--muted, #8a8f96);
+  line-height: 1.45;
+}
+.cache-row .cache-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cache-row .cache-state { flex: 0 0 auto; font-variant-numeric: tabular-nums; opacity: .8; }
+.cache-row.dim { opacity: .55; }
+
+/* 行尾缓存钮的三种态（2026-10-31）：未缓存 / 缓存中 / 已在本地。
+   图标两个都渲染，靠 class 切，不重写 innerHTML。 */
+.row-dl .i-ok { display: none; }
+.row-dl.cached { opacity: .5; cursor: default; }
+.row-dl.cached .i-dl { display: none; }
+.row-dl.cached .i-ok { display: block; }
 
 /* MPV 输出行：设备下拉 + 独占勾选 */
 .mpv-excl{display:inline-flex;align-items:center;gap:4px;font-size:12px;opacity:.8;white-space:nowrap;cursor:pointer}

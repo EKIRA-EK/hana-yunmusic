@@ -681,14 +681,16 @@ async function openFullPage() {
 if (el.btnPlaylists) el.btnPlaylists.addEventListener("click", () => openList("playlists", ""));
 
 /* ---------------- 输入框上方的歌词条（mini 是主入口） ----------------
- * 一颗钮循环四种显示方式：居盈 → 散雪 → 行云 → 尽染（关不是循环里的一档，是右键）。
+ * 一颗钮循环四种显示方式：傲雪 → 居盈 → 行云 → 尽染（关不是循环里的一档，是右键）。
  * 会话身份取自宿主的「当前活动会话」；拿不到就报一句，不假装成功。
  * 整页那边的 ncm_music action=lyric-strip 是兜底入口。 */
-const STRIP_LABEL = { off: "歌词", center: "居盈", shatter: "散雪", scroll: "行云", karaoke: "尽染" };
+const STRIP_LABEL = { off: "歌词", center: "居盈", shatter: "傲雪", scroll: "行云", karaoke: "尽染" };
+/** 悬停提示开头用四字意境（按钮上仍只放两字——宽度就那么点）。 */
+const STRIP_EPITHET = { center: "居中盈满", shatter: "傲雪随风", scroll: "行云流水", karaoke: "层云尽染" };
 /** 钮上的字太少会看不出功能，悬停时补一句老白话。 */
 const STRIP_HINT = { center: "中位固定", shatter: "唱完散开", scroll: "横向流动", karaoke: "逐字上色" };
 /** 单击时的下一档：四种显示方式循环（不再包含「关」—— 关是右键）。
- *  顺序由异羽 2026-10-25 定：**散雪 → 居盈 → 行云 → 尽染**（与 lib/lyric-strip.js 的 STRIP_MODES 一致）。 */
+ *  顺序由异羽 2026-10-25 定、2026-10-28 把首档改名傲雪：**傲雪 → 居盈 → 行云 → 尽染**（与 lib/lyric-strip.js 的 STRIP_MODES 一致）。 */
 const NEXT_MODE = { shatter: "center", center: "scroll", scroll: "karaoke", karaoke: "shatter" };
 /** 把后端回的 mode 归一成按钮上的状态。**新增显示方式只改这一处**（以前在下面两处各写一遍，
  *  很容易只改一处 —— 2026-10-17 加 shatter 时顺手合并）。 */
@@ -715,7 +717,7 @@ function renderLyricButton() {
   el.btnLyric.textContent = STRIP_LABEL[stripState] || "歌词";
   el.btnLyric.setAttribute("aria-pressed", on ? "true" : "false");
   el.btnLyric.title = on
-    ? `${STRIP_LABEL[stripState]}（${STRIP_HINT[stripState] || "歌词条"}）· 点击切换显示方式，右键收起`
+    ? `${STRIP_EPITHET[stripState] || STRIP_LABEL[stripState]}（${STRIP_HINT[stripState] || "歌词条"}）· 点击切换显示方式，右键收起`
     : "显示歌词条（右键可收起）";
 }
 

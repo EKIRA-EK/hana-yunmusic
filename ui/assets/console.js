@@ -25,6 +25,9 @@ const el = {
   level: $("level"),
   dlLevel: $("dlLevel"),
   dlLevelHint: $("dlLevelHint"),
+  cacheOnPlay: $("cacheOnPlay"),
+  cacheLimit: $("cacheLimit"),
+  cacheList: $("cacheList"),
   // 封面与下载目录（2026-10-22）
   dlCover: $("dlCover"),
   btnDownloadDir: $("btnDownloadDir"),
@@ -261,7 +264,7 @@ function heartButton(id) {
   return `<button class="row-heart${on ? " on" : ""}" data-like="${escapeHtml(String(id || ""))}" title="${on ? "取消红心" : "红心"}" aria-label="红心">${svg(on ? ICON.heart : ICON.heartOutline, "icon")}</button>`;
 }
 
-/** 行上的下载按钮。下载中 / 已完成时由 markDownloadRows() 点亮。 */
+/** 行上的下载按钮。下载中 / 已完成 / **本地已有** 由 markDownloadRows() 切图标。 */
 function dlButton(song) {
   const id = String((song && song.id) || "");
   if (!id) return "";
@@ -271,8 +274,20 @@ function dlButton(song) {
     `data-dl-artist="${escapeHtml(String((song && song.artist) || ""))}"`,
     `data-dl-album="${escapeHtml(String((song && song.album) || ""))}"`,
   ].join(" ");
-  return `<button class="row-dl" ${attrs} title="下载这首" aria-label="下载"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.4v9.4"/><path d="M8.3 10.5 12 14.2l3.7-3.7"/><path d="M5.6 18.8h12.8"/></svg></button>`;
+  /* 两个图标都放在按钮里，靠 class 切 —— 比每次重写 innerHTML 干净，也不会把焦点弄丢。 */
+  return `<button class="row-dl" ${attrs} title="缓存这首" aria-label="缓存"><svg class="icon i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4.4v9.4"/><path d="M8.3 10.5 12 14.2l3.7-3.7"/><path d="M5.6 18.8h12.8"/></svg><svg class="icon i-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.2 12.6l4.3 4.3L19 7.4"/></svg></button>`;
 }
+
+/** 歌手+歌名的归一化 key，用来跟本地库对“这首是不是已经有了”。 */
+function localKey(artist, name) {
+  const norm = (v) =>
+    String(v || "")
+      .toLowerCase()
+      .replace(/[\s·・.,:;!?'"“”‘’()（）\[\]【】\-_/_\\|&]+/g, "");
+  return norm(artist) + "|" + norm(name);
+}
+/** 本地库里已有的歌（2026-10-31）：按钮要显示“已缓存”，否则看不出它是被跳过了。 */
+const localCache = new Set();
 
 /* ---------------- 下载到本地 ----------------
  * 字节由应用后端的下载器子进程去取（见 lib/download.js 与 runtime/downloader.cjs）。
@@ -297,9 +312,14 @@ function dirLabel(dir) {
 function markDownloadRows() {
   for (const btn of document.querySelectorAll(".row-dl")) {
     const id = String(btn.dataset.dl || "");
-    const on = dlJobs.live.has(id) || dlJobs.done.has(id);
-    btn.classList.toggle("on", on);
-    btn.title = dlJobs.done.has(id) ? "已下载" : dlJobs.live.has(id) ? "下载中" : "下载这首";
+    const key = localKey(btn.dataset.dlArtist, btn.dataset.dlName);
+    const live = dlJobs.live.has(id);
+    /* 本地已有的算“已缓存”（2026-10-31）：以前只认本次任务，于是自动缓存跳过的歌
+       看起来跟从来没下过一模一样 —— 异羽就是因此问“在播放的歌怎么没下载”。 */
+    const cached = dlJobs.done.has(id) || localCache.has(key);
+    btn.classList.toggle("on", live || cached);
+    btn.classList.toggle("cached", cached && !live);
+    btn.title = live ? "缓存中" : cached ? "已在本地，不重复缓存" : "缓存这首";
   }
 }
 
@@ -366,13 +386,32 @@ async function pollDownload() {
 
     const c = r.counts || {};
     const liveCount = (c.queued || 0) + (c.running || 0);
+    const cur = (r.jobs || []).find((j) => j.state === "running") || (r.jobs || []).find((j) => j.state === "queued");
+    /* 缓存队列（2026-10-31 异羽：“要下歌的时候把队列显示出来”）：
+       进行中与排队中的逐条列出（最多 6 条），下面还有多少就写一个 +N。 */
+    if (el.cacheList) {
+      const pend = (r.jobs || []).filter((j) => j.state === "running" || j.state === "queued");
+      if (pend.length) {
+        el.cacheList.hidden = false;
+        const rows = pend.slice(0, 6).map((j) => {
+          const who = [j.artist, j.name].filter(Boolean).join(" - ") || j.songId;
+          const pct = j.total ? Math.min(100, Math.round((j.bytes / j.total) * 100)) : 0;
+          const tag = j.state === "running" ? `${pct}%` : "排队";
+          return `<div class="cache-row"><span class="cache-name">${escapeHtml(who)}</span><span class="cache-state">${tag}</span></div>`;
+        });
+        if (pend.length > 6) rows.push(`<div class="cache-row dim">还有 ${pend.length - 6} 首…</div>`);
+        el.cacheList.innerHTML = rows.join("");
+      } else {
+        el.cacheList.hidden = true;
+        el.cacheList.innerHTML = "";
+      }
+    }
     if (liveCount || c.failed) {
-      const cur = (r.jobs || []).find((j) => j.state === "running") || (r.jobs || []).find((j) => j.state === "queued");
       const who = cur ? `：${cur.artist ? cur.artist + " - " : ""}${cur.name}` : "";
-      showDlHint(`下载中 ${liveCount} 首${who} · 完成 ${c.done || 0}${c.failed ? ` · 失败 ${c.failed}` : ""}`, !!c.failed, r.dir);
+      showDlHint(`缓存中 ${liveCount} 首${who} · 完成 ${c.done || 0}${c.failed ? ` · 失败 ${c.failed}` : ""}`, !!c.failed, r.dir);
     } else if (c.done) {
       // 面上只写条数和文件夹名，完整路径挂 title（鼠标悬停看）
-      showDlHint(`下载完成 ${c.done} 首 · ${dirLabel(r.dir)}`, false, r.dir);
+      showDlHint(`缓存完成 ${c.done} 首 · ${dirLabel(r.dir)}`, false, r.dir);
     }
     clearTimeout(dlTimer);
     if (liveCount) dlTimer = setTimeout(pollDownload, 2000);
@@ -473,6 +512,10 @@ async function loadLocal(force) {
       view.local = { loading: false, loaded: false, dir: "", items: [], error: (r && r.error) || "读取失败" };
     } else {
       view.local = { loading: false, loaded: true, dir: r.dir || "", items: r.items || [], error: "" };
+      /* 本地库变了就重建“已有”索引，行尾钮的“已缓存”状态靠它。 */
+      localCache.clear();
+      for (const it of view.local.items) localCache.add(localKey(it.artist, it.name));
+      markDownloadRows();
     }
   } catch (error) {
     view.local = { loading: false, loaded: false, dir: "", items: [], error: String((error && error.message) || error) };
@@ -642,7 +685,7 @@ function renderPlaylist() {
     el.plList.innerHTML = shown.map((i, pos) => trackRow(st.tracks[i], i, pos, true)).join("");
     return;
   }
-  el.plHint.textContent = st.loading ? "读取云歌单…" : st.items.length ? `我收藏的云歌单 ${st.items.length} 个 · 点开看曲目` : "没有读到云歌单（先确认已登录网易云）";
+  el.plHint.textContent = st.loading ? "读取云歌单…" : st.items.length ? `我收藏的云歌单 ${st.items.length} 个 · 点开看曲目` : "没有读到云歌单（先确认已登录）";
   el.plList.innerHTML = st.items
     .map(
       (p, i) => `<li class="trackrow" data-pl="${i}">
@@ -1218,9 +1261,26 @@ async function loadDownloadMeta() {
     if (!cfg || cfg.ok === false) return;
     view.dlMeta = cfg;
     if (el.dlCover && cfg.cover) el.dlCover.value = cfg.cover;
+    if (el.cacheOnPlay) {
+      el.cacheOnPlay.checked = !!cfg.cacheOnPlay;
+      /* 未登录不给开：勾上也没用，接口只给 128k；后端也会拒，这里先灰掉把原因写清楚。 */
+      const can = cfg.loggedIn !== false;
+      el.cacheOnPlay.disabled = !can;
+      const wrap = el.cacheOnPlay.closest("label");
+      if (wrap) {
+        wrap.style.opacity = can ? "1" : "0.45";
+        wrap.title = can ? "正在听的歌顺手缓存一份到下面的目录" : "要登录后才能缓存";
+      }
+    }
     if (el.dlDirHint && cfg.dir) {
-      el.dlDirHint.textContent = "下载到 " + cfg.dir;
+      el.dlDirHint.textContent = "缓存到 " + cfg.dir;
       el.dlDirHint.title = cfg.dir + "\n（点一下可以换目录）";
+    }
+    if (el.cacheLimit && Number.isFinite(Number(cfg.cacheLimit))) {
+      /* 字节 → GB，保留一位；0 就是 0（不限） */
+      const gb = Number(cfg.cacheLimit) / 1024 / 1024 / 1024;
+      el.cacheLimit.value = String(Math.round(gb * 10) / 10);
+      el.cacheLimit.dataset.bytes = String(cfg.cacheLimit);
     }
   } catch {
     /* 取源/后端未就绪时安静跳过 */
@@ -1262,6 +1322,46 @@ if (el.dlDirHint) {
     }
   });
 }
+if (el.cacheOnPlay) {
+  el.cacheOnPlay.addEventListener("change", async () => {
+    const want = !!el.cacheOnPlay.checked;
+    try {
+      const r = await post("download/config", { cacheOnPlay: want });
+      if (!r || r.ok === false) {
+        el.cacheOnPlay.checked = !want;
+        showDlHint((r && r.error) || "缓存开关没存上", true);
+        return;
+      }
+      showDlHint(want ? "已开启：之后播放的歌会缓存一份" : "已关闭自动缓存");
+    } catch {
+      el.cacheOnPlay.checked = !want;
+      showDlHint("缓存开关没存上", true);
+    }
+  });
+}
+
+if (el.cacheLimit) {
+  el.cacheLimit.addEventListener("change", async () => {
+    const gb = Number(el.cacheLimit.value);
+    if (!Number.isFinite(gb) || gb < 0) {
+      showDlHint("上限要填 0 或正数（单位 GB）", true);
+      return;
+    }
+    const bytes = Math.round(gb * 1024 * 1024 * 1024);
+    try {
+      const r = await post("download/config", { cacheLimit: bytes });
+      if (!r || r.ok === false) {
+        showDlHint((r && r.error) || "上限没存上", true);
+        return;
+      }
+      el.cacheLimit.dataset.bytes = String(bytes);
+      showDlHint(bytes ? `缓存上限已设为 ${gb} GB` : "缓存不限大小");
+    } catch {
+      showDlHint("上限没存上", true);
+    }
+  });
+}
+
 if (el.dlCover) {
   el.dlCover.addEventListener("change", () => {
     post("download/config", { cover: el.dlCover.value }).catch(() => {});
@@ -1797,6 +1897,12 @@ function applyLevelAvailability() {
   };
   rule(el.dlLevel, "standard");
   rule(el.level, "standard");
+  /* 登录态回来以后把存着的那档恢复（2026-10-31）：reload 后 account 要几秒才读到，
+     那几秒里上面那条会把显示收成「标准」，而它不会自己变回来 ——
+     异羽遇到的就是“选了 320，重载又变回 128”（后端存的其实是 exhigh，只是显示错了）。 */
+  if (loggedIn && el.dlLevel && view.dlMeta && view.dlMeta.level && el.dlLevel.value !== view.dlMeta.level) {
+    el.dlLevel.value = view.dlMeta.level;
+  }
 
   /* 说明写在**看得见的一行**上：`<option>` 的 title 在 Chromium 里不弹
    *（尤其是 disabled 的选项，鼠标没机会停在上面）—— 2026-10-15 用户实测指出。 */
@@ -1821,8 +1927,11 @@ function updateAccountButton() {
 
 async function refreshAccount() {
   try {
+    const was = !!view.account;
     const r = await api("account");
     view.account = r.profile || null;
+    /* 刚登录上（或 reload 后第一次读到）就把存档的音质档读回来，否则下拉会一直停在“标准 128K”。 */
+    if (!was && view.account) void loadDownloadMeta();
   } catch {
     view.account = view.account || null;
   }

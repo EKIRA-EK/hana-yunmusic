@@ -1,9 +1,9 @@
 {
   "manifestVersion": 2,
-  "id": "hana-music163",
-  "name": "HANA云音乐",
-  "version": "0.18.71",
-  "description": "本机网易云音乐播放控制台：取源走 api-enhanced（由宿主托管运行时随 App 自启），声音可选页面 HTML5 audio 或 MPV（WASAPI 独占）双后端。整页与侧栏面板读同一份状态；自带环境自检与引导安装（包里带不了的取源服务 / mpv.exe 缺哪个就说哪个）。",
+  "id": "hana-yunmusic",
+  "name": "HANA云听听",
+  "version": "0.20.1",
+  "description": "HANA 里的音乐播放器：连接你自己的网易云音乐账号，在线收听、看歌词、按需缓存。非官方客户端，与网易云音乐无关联；只访问你账号本来就能听的内容，音乐与歌词版权归原权利人。",
   "entry": "index.js",
   "icon": "assets/icon.webp",
   "minAppVersion": "0.1050.9",
@@ -19,7 +19,8 @@
     "allowedHosts": [
       "127.0.0.1",
       "*.music.126.net",
-      "*.126.net"
+      "*.126.net",
+      "amlldb.bikonoo.com"
     ],
     "allowLocalhost": true,
     "methods": [
@@ -33,8 +34,8 @@
     "cards": [
       {
         "id": "console",
-        "title": "云音乐",
-        "description": "网易云音乐播放控制台：封面、进度、播放控制、播放队列、搜索、歌词、云歌单、红心。",
+        "title": "云听听",
+        "description": "音乐播放控制台：封面、进度、播放控制、播放队列、搜索、歌词、我的歌单、红心。",
         "route": "/console.html",
         "realization": "page",
         "pageIcon": "assets/nav.svg",
@@ -51,7 +52,7 @@
       },
       {
         "id": "now",
-        "title": "云音乐•Mini",
+        "title": "云听听•Mini",
         "description": "紧凑的播放面板：封面、进度、上一下一首与播放控制、音量。钉在工作台上当遥控器，不用打开整页。",
         "route": "/mini.html",
         "realization": "card",
