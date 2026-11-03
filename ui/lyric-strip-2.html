@@ -296,9 +296,12 @@
   }
 
   /* ---------- 字号钮：平时隐身，鼠标进面板才现 ---------- */
+  /* 2026-11-04：HANA 1.5.70 把面板右下角的「关闭面板」四个字换成了 × 图标钮，
+     它从 iframe 右边缘往里占约 30px，正好盖住原本 right:9 的字号钮。
+     两颗钮整体右移让开（38 / 70），配色钮在原 41 的基础上同样加 29。 */
   .ls-btn {
     position: absolute;
-    right: 9px;
+    right: 38px;
     top: 50%;
     transform: translateY(-50%);
     display: inline-flex;
@@ -323,7 +326,7 @@
 
   /* 配色钮：与字号钮并排（它在左）。钮里那颗点直接用当前的「正在唱」色，
      所以它既是开关也是指示器 —— 不点也能一眼看出现在是什么配色。 */
-  .ls-btn.palette { right: 41px; }
+  .ls-btn.palette { right: 70px; }
   .ls-dot {
     width: 13px;
     height: 13px;
