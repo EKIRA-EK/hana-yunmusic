@@ -12,6 +12,7 @@ import { registerRoutes } from "./lib/routes.js";
 import { createLyricStrip } from "./lib/lyric-strip.js";
 import { createSetup } from "./lib/setup.js";
 import { createAmll } from "./lib/amll.js";
+import { initToken } from "./lib/app-token.js";
 
 export const name = "hana-yunmusic";
 
@@ -30,6 +31,10 @@ const STATE_KEY = "player-v2";
 
 export default defineApp(async (sdk) => {
   const storage = sdk.storage.global;
+
+  /* 本机三个服务（取源 / mpv 桥 / 下载器）共用的入口凭据。
+     必须先写盘再启动服务：服务启动时读同一个文件，读不到就拒绝提供接口。 */
+  initToken(sdk.dataDir);
 
   async function read(key, fallback) {
     try {

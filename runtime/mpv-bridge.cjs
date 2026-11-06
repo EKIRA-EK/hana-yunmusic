@@ -54,6 +54,8 @@ const net = require("node:net");
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn, spawnSync } = require("node:child_process");
+/* 入口凭据：本桥能改 mpv 可执行路径并启动它，必须只接受 App 调用。 */
+const { TOKEN, isAuthorized } = require("./_app-token.cjs");
 
 const PORT = Number(process.env.MPV_BRIDGE_PORT || "3310");
 const HOST = process.env.MPV_BRIDGE_HOST || "127.0.0.1";
@@ -194,6 +196,23 @@ function record(text) {
   const line = `[${new Date().toISOString()}] ${text}`;
   logLines.push(line);
   if (logLines.length > 200) logLines.shift();
+}
+
+/**
+ * 只接受「已经存在的 .exe 绝对路径」，空串表示清空、回到候选查找。
+ * 非法输入返回 null（调用方据此报错），不静默落盘。
+ */
+function safeExePath(value) {
+  const p = String(value || "").trim();
+  if (!p) return "";
+  if (!path.isAbsolute(p)) return null;
+  if (!/\.exe$/i.test(p)) return null;
+  try {
+    if (!fs.statSync(p).isFile()) return null;
+  } catch {
+    return null;
+  }
+  return p;
 }
 
 function findMpv() {
@@ -852,7 +871,6 @@ function send(res, code, payload) {
   });
   res.end(body);
 }
-
 function readBody(req) {
   return new Promise((resolve) => {
     let raw = "";
@@ -897,10 +915,15 @@ function snapshot() {
   };
 }
 
-const server = http.createServer(async (req, res) => {  const url = new URL(req.url, "http://127.0.0.1");
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, "http://127.0.0.1");
   const route = url.pathname.replace(/\/+$/, "") || "/";
   const method = (req.method || "GET").toUpperCase();
   try {
+    /* 凭据：本桥能改 mpv 可执行路径并 spawn 它，不能对外开放。
+       页面不直连桥（都走后端），所以这里不需要 CORS。 */
+    if (!TOKEN) return send(res, 503, { ok: false, error: "桥未就绪：缺少应用令牌" });
+    if (!isAuthorized(req, url)) return send(res, 401, { ok: false, error: "unauthorized" });
     if (method === "GET" && (route === "/" || route === "/status")) {
       await refreshProps(); // 读的时候现拉，不把缓存当实况
       return send(res, 200, snapshot());
@@ -961,7 +984,11 @@ const server = http.createServer(async (req, res) => {  const url = new URL(req.
       const before = configSignature();
       if (body.exclusive !== undefined) config.exclusive = body.exclusive === true;
       if (body.audioDevice !== undefined) config.audioDevice = String(body.audioDevice || "");
-      if (body.exePath !== undefined) config.exePath = String(body.exePath || "");
+      if (body.exePath !== undefined) {
+        const next = safeExePath(body.exePath);
+        if (next === null) return send(res, 400, { ok: false, error: "exePath 必须是已存在的 .exe 绝对路径" });
+        config.exePath = next;
+      }
       if (body.volume !== undefined && Number.isFinite(Number(body.volume))) {
         config.volume = Math.max(0, Math.min(100, Number(body.volume)));
         state.volume = config.volume;

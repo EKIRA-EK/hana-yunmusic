@@ -39,6 +39,9 @@ const { pipeline } = require("node:stream/promises");
  * 为什么不它自己开一个端口：应用进程的 fetch 被宿主拦（单独开 3330 从应用里拿不到，
  * ERR_ACCESS_DENIED），而 3320 一直是通的 —— 详见 setup-helper.cjs 顶部注释。 */
 const { handleSetupRequest } = require("./setup-helper.cjs");
+/* 入口凭据：只接受 App 本身（带 runtime-token）调用。本服务的端点能读文件、返回任意路径，
+   不加这一层等于把本机文件读取能力开放给任何进程。 */
+const { TOKEN, DATA_DIR, isAuthorized, corsHeaders } = require("./_app-token.cjs");
 
 const PORT = Number(process.env.MUSIC_DL_PORT || "3320");
 const HOST = process.env.MUSIC_DL_HOST || "127.0.0.1";
@@ -243,23 +246,72 @@ function readBody(req) {
   });
 }
 
+/**
+ * `/file` 只允许发送「用户选定的下载目录」里的文件。
+ * 根由 App 写进 dl-roots.json（目录一改就重写），这里 1 秒缓存，避免每个 Range 请求都读盘。
+ * 用 realpath 比对：能挡住 `..`、符号链接与大小写变体。
+ */
+let rootsCache = { at: 0, list: [] };
+function allowedRoots() {
+  const now = Date.now();
+  if (now - rootsCache.at < 1000) return rootsCache.list;
+  let list = [];
+  try {
+    const raw = fs.readFileSync(path.join(DATA_DIR, "dl-roots.json"), "utf8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed.roots)) list = parsed.roots.map(String).filter(Boolean);
+  } catch {
+    list = [];
+  }
+  rootsCache = { at: now, list };
+  return list;
+}
+
+function fileAllowed(target) {
+  const roots = allowedRoots();
+  if (!roots.length) return false;
+  let real;
+  try {
+    real = fs.realpathSync(target).toLowerCase();
+  } catch {
+    return false;
+  }
+  for (const root of roots) {
+    let r;
+    try {
+      r = fs.realpathSync(root).toLowerCase();
+    } catch {
+      continue;
+    }
+    if (real === r || real.startsWith(r.endsWith(path.sep) ? r : r + path.sep)) return true;
+  }
+  return false;
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://127.0.0.1");
   const route = url.pathname.replace(/\/+$/, "") || "/";
   const method = (req.method || "GET").toUpperCase();
   const send = (code, obj) => {
     const s = JSON.stringify(obj);
-    /* CORS：歌词存档（.lrc）要从控制台页面（另一个端口）fetch 回来，
-       没有这个头浏览器会直接拦。本地服务，放开 * 是安全的。 */
-    res.writeHead(code, {
+    /* CORS：歌词存档（.lrc）要从控制台页面 fetch 回来，所以仍需要这个头，
+       但只回显回环来源，不再用 "*"（2026-11-04 按市场审查意见收紧）。 */
+    res.writeHead(code, Object.assign({
       "Content-Type": "application/json; charset=utf-8",
       "Content-Length": Buffer.byteLength(s),
-      "Access-Control-Allow-Origin": "*",
-    });
+    }, corsHeaders(req)));
     res.end(s);
   };
 
   try {
+    /* 预检请求只回 CORS 头，不带内容 */
+    if (method === "OPTIONS") {
+      res.writeHead(204, corsHeaders(req));
+      return res.end();
+    }
+    /* 凭据：没有令牌文件时直接拒绝（不降级成“开放”）。 */
+    if (!TOKEN) return send(503, { ok: false, error: "服务未就绪：缺少应用令牌" });
+    if (!isAuthorized(req, url)) return send(401, { ok: false, error: "unauthorized" });
     /* 环境自检：前缀在这里剥掉，助手那边仍按 /status 这种净路径处理 */
     if (route === "/setup" || route.startsWith("/setup/")) {
       req.url = req.url.replace(/^\/setup/, "") || "/";
@@ -610,6 +662,7 @@ const server = http.createServer(async (req, res) => {
     if (route === "/file" && method === "GET") {
       const target = String(url.searchParams.get("p") || "");
       if (!target) return send(400, { ok: false, error: "缺少 p" });
+      if (!fileAllowed(target)) return send(403, { ok: false, error: "路径不在允许的目录内" });
       const stat = await fsp.stat(target).catch(() => null);
       if (!stat || !stat.isFile()) return send(404, { ok: false, error: "文件不存在" });
       const total = stat.size;
@@ -623,7 +676,7 @@ const server = http.createServer(async (req, res) => {
             /* ignore */
           }
         });
-        res.writeHead(code, Object.assign({ "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "no-store", "Access-Control-Allow-Origin": "*" }, extra || {}));
+        res.writeHead(code, Object.assign({ "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "no-store" }, corsHeaders(req), extra || {}));
         stream.pipe(res);
       };
       const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range || "").trim());
