@@ -16,6 +16,10 @@
        末尾那个 min(…, 25%) 是保底：显示区最窄也不低于中间 50%（即 2026-10-16 之前的值）。
        ⚠ 「一个关闭面板 = 64px」是估的（那颗钮是宿主的，量不到）。真机上看着不对就改这个数。 */
     --ls-pad-x: min(128px, 25%);
+  /* 右侧额外留白：宿主的 × 就在右边，长句靠得太近会挤在一起（2026-11-04）。 */
+  --ls-pad-r: min(184px, 32%);
+  /* 内容整体上浮：0.6 倍字号。四种模式统一口径（散雪是画布平移，其余是容器底部留白）。 */
+  --ls-lift: calc(var(--ls-cur) * 0.6);
     /* 跟随宿主主题：正在唱 = 主题主色（--accent），两侧 = 次级文字（--text-muted）。
        宿主会把当前主题的样式表注入本文档（SDK 的 followHostTheme），亮暗各一套归它管，
        面板背景也是宿主的，所以只取这两个变量，不再自己定色。
@@ -79,7 +83,7 @@
     box-sizing: border-box;
     width: 100%;
     height: 100%;
-    padding: 0 22px;
+    padding: 0 22px var(--ls-lift);
     /* 两端柔化只在最外一丁点：2026-10-14 由 11% 收到 6% ——
        下一句换到左格后，行的**开头**就在这一带，11% 会把头三个字压暗，与“要看清”相抵。 */
     -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
@@ -188,7 +192,7 @@
        2026-10-16 用户拿了截图指出太窄（黄的框是想要的，右下红框是宿主那颗「关闭面板」）。
        下边那 10px 不动：iframe 底边紧顶着宿主那行「关闭面板」，字在这个收窄后的容器里居中，
        重心上提，也不会跑出上边缘。边缘只留 3% 柔化。 */
-    inset: 0 var(--ls-pad-x) 10px var(--ls-pad-x);
+    inset: 0 var(--ls-pad-r) calc(10px + var(--ls-lift)) var(--ls-pad-x);
     overflow: hidden;
     -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
     mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
@@ -228,7 +232,7 @@
   .ls-kara[hidden] { display: none; }
   .ls-kara {
     position: absolute;
-    inset: 0 6% 10px 6%;
+    inset: 0 6% calc(10px + var(--ls-lift)) 6%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -290,9 +294,14 @@
     position: absolute;
     inset: 0;
     display: block;
-    width: 100%;
+    /* 右侧留出 × 的位置：画布窄 72px，字自然左移一点，不再贴着那颗叉。 */
+    width: calc(100% - 72px);
     height: 100%;
     pointer-events: none;
+    /* 2026-11-04：整块画布上浮 0.6 倍字号。
+       试过 1.2 倍 —— 字与 × 分得开，但面板得同时撞到 3.6 倍高，会盖住聊天区，否决。
+       0.6 倍在现有 2.6 倍高度内不会裁字，也不动面板高度，只把重心提上来一点。 */
+    transform: translateY(calc(var(--ls-cur) * -0.6));
   }
 
   /* ---------- 字号钮：平时隐身，鼠标进面板才现 ---------- */
@@ -321,8 +330,11 @@
     opacity: 0;
     transition: opacity 0.2s ease, background 0.2s ease;
   }
-  body:hover .ls-btn { opacity: 0.5; }
-  .ls-btn:hover, .ls-btn:focus-visible { opacity: 0.95; background: rgba(127, 127, 127, 0.18); }
+  /* 平时几乎透明（0.18，看得出来有个影子）；真悬停在按钮上才实起来。
+     2026-11-04：写过 body:hover .ls-btn { opacity: 0 }，但它的特异性（0,2,1）比
+     .ls-btn:hover（0,2,0）高，结果悬停也一直是 0，按钮彻底找不到了。 */
+  body:hover .ls-btn { opacity: 0.18; }
+  body:hover .ls-btn:hover, .ls-btn:focus-visible { opacity: 0.95; background: rgba(127, 127, 127, 0.18); }
 
   /* 配色钮：与字号钮并排（它在左）。钮里那颗点直接用当前的「正在唱」色，
      所以它既是开关也是指示器 —— 不点也能一眼看出现在是什么配色。 */

@@ -263,10 +263,19 @@ function allowedRoots() {
   } catch {
     list = [];
   }
+  /* 字体库：歌词条要用用户导入的字体，文件在 <hanaHome>/font-library。
+     它是系统级的只读目录，不属于「写入目录」，但必须能读，否则自定义字体加载失败。 */
+  if (DATA_DIR) {
+    try {
+      const fontDir = path.join(DATA_DIR, "..", "..", "font-library");
+      if (fs.statSync(fontDir).isDirectory()) list.push(fontDir);
+    } catch {
+      /* 没装字体库就忽略 */
+    }
+  }
   rootsCache = { at: now, list };
   return list;
 }
-
 function fileAllowed(target) {
   const roots = allowedRoots();
   if (!roots.length) return false;
@@ -474,7 +483,7 @@ const server = http.createServer(async (req, res) => {
             let src = "";
             if (face && face.filename) {
               const file = path.join(home, "font-library", "files", String(face.filename));
-              if (fs.existsSync(file)) src = "http://127.0.0.1:3320/file?p=" + encodeURIComponent(file);
+              if (fs.existsSync(file)) src = "http://127.0.0.1:3320/file?p=" + encodeURIComponent(file) + "&t=" + TOKEN;
             }
             return {
               id: String(f.id || ""),

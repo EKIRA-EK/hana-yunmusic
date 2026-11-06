@@ -2,7 +2,7 @@
   "manifestVersion": 2,
   "id": "hana-yunmusic",
   "name": "HANA云听听",
-  "version": "0.20.3",
+  "version": "0.20.4",
   "description": "HANA 里的音乐播放器：连接你自己的网易云音乐账号，在线收听、看歌词、按需缓存。非官方客户端，与网易云音乐无关联；只访问你账号本来就能听的内容，音乐与歌词版权归原权利人。",
   "entry": "index.js",
   "icon": "assets/icon.webp",
