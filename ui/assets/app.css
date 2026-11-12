@@ -1,17 +1,32 @@
-/* HANA云音乐 — 共用外观。纸白、墨色、一点苔青；克制、留白，缩小后仍耐看。 */
-
+/* HANA云听听 — 共用外观。
+ * 配色跟着 Hana 主题走（2026-11-12）：宿主会往页面注入一组 --hana-* 变量，
+ * 有就直接用，没有才回落到原来那套纸白墨色。这样换主题（暖纸 / 青夜 /
+ * 草香 / 珊瑚 …）时音乐页不再是孤岛。
+ * 派生色一律用 color-mix 从两个基础色算，深浅两套自动成立，不用写两遍。 */
 :root {
-  --paper: #f8f6f1;
-  --paper-sink: #f1eee6;
-  --edge: rgba(42, 43, 46, 0.1);
-  --edge-soft: rgba(42, 43, 46, 0.06);
-  --ink: #282a2d;
-  --ink-soft: #6f737a;
-  --ink-faint: #a3a7ae;
-  --accent: #6f938c;
-  --accent-deep: #5b8079;
-  --accent-wash: rgba(111, 147, 140, 0.13);
-  --accent-wash-strong: rgba(111, 147, 140, 0.22);
+  /* 三层回落：卡片上下文注入的 --hana-* → 宿主主题样式表的 --bg-* / --text-* → App 原有的纸墨色。
+     宿主主题表由 SDK 的 followHostTheme 注入（fetch 主题 css 后内联成 <style>）。 */
+  --paper: var(--hana-bg-card, var(--bg-card, #f8f6f1));
+  --ink: var(--hana-text, var(--text, #282a2d));
+  --ink-soft: var(--hana-text-light, var(--text-light, #6f737a));
+  --ink-faint: var(--hana-text-muted, var(--text-muted, #a3a7ae));
+  --accent: var(--hana-accent, #6f938c);
+  --accent-deep: var(--hana-accent-hover, var(--accent-hover, #5b8079));
+  /* 警告 / 无音源 / 试听：主题有 --danger 就压暗一档拿来用，
+     没有就用原来的砖红——比直接用鲜红安静。 */
+  --warn: color-mix(in srgb, var(--danger, #b07b62) 80%, var(--ink) 20%);
+  /* 「通过」的勾：以前引用了不存在的 --color-ok，一直是继承色。 */
+  --color-ok: var(--green, #4f8f72);
+  /* 强调色块上的前景色：主题的强调色很浅时，这里可以单独改。 */
+  --on-accent: #fff;
+  --edge: var(--hana-border, var(--border, rgba(42, 43, 46, 0.1)));
+
+  /* 派生：底色下沉、次弱文字、分隔线余量、强调色淡底 */
+  --paper-sink: color-mix(in srgb, var(--paper) 94%, var(--ink) 6%);
+  --edge-soft: color-mix(in srgb, var(--edge) 58%, transparent);
+  --accent-wash: color-mix(in srgb, var(--accent) 13%, transparent);
+  --accent-wash-strong: color-mix(in srgb, var(--accent) 22%, transparent);
+
   --shadow: 0 1px 2px rgba(30, 32, 36, 0.05), 0 10px 26px rgba(30, 32, 36, 0.06);
   --radius: 14px;
   --serif: var(--hana-font-serif, "Songti SC", "STSong", "SimSun", serif);
@@ -19,33 +34,23 @@
 }
 
 :root[data-appearance="dark"] {
-  --paper: #1c1d20;
-  --paper-sink: #232427;
-  --edge: rgba(255, 255, 255, 0.09);
-  --edge-soft: rgba(255, 255, 255, 0.05);
-  --ink: #e7e5e1;
-  --ink-soft: #9ba0a7;
-  --ink-faint: #6d7178;
-  --accent: #8fb3ab;
-  --accent-deep: #a4c4bc;
-  --accent-wash: rgba(143, 179, 171, 0.16);
-  --accent-wash-strong: rgba(143, 179, 171, 0.26);
+  --paper: var(--hana-bg-card, var(--bg-card, #1c1d20));
+  --ink: var(--hana-text, var(--text, #e7e5e1));
+  --ink-soft: var(--hana-text-light, var(--text-light, #9ba0a7));
+  --ink-faint: var(--hana-text-muted, var(--text-muted, #6d7178));
+  --edge: var(--hana-border, var(--border, rgba(255, 255, 255, 0.09)));
+  /* 强调色不在深色块里重写：它已经在 :root 接过 --hana-accent，
+     而宿主的 --accent 是一条同名的更晚规则，不应该被这里的选择器权重盖掉。 */
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 12px 30px rgba(0, 0, 0, 0.3);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-appearance]) {
-    --paper: #1c1d20;
-    --paper-sink: #232427;
-    --edge: rgba(255, 255, 255, 0.09);
-    --edge-soft: rgba(255, 255, 255, 0.05);
-    --ink: #e7e5e1;
-    --ink-soft: #9ba0a7;
-    --ink-faint: #6d7178;
-    --accent: #8fb3ab;
-    --accent-deep: #a4c4bc;
-    --accent-wash: rgba(143, 179, 171, 0.16);
-    --accent-wash-strong: rgba(143, 179, 171, 0.26);
+    --paper: var(--hana-bg-card, var(--bg-card, #1c1d20));
+    --ink: var(--hana-text, var(--text, #e7e5e1));
+    --ink-soft: var(--hana-text-light, var(--text-light, #9ba0a7));
+    --ink-faint: var(--hana-text-muted, var(--text-muted, #6d7178));
+    --edge: var(--hana-border, var(--border, rgba(255, 255, 255, 0.09)));
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.32), 0 12px 30px rgba(0, 0, 0, 0.3);
   }
 }
@@ -175,6 +180,15 @@ body.mini {
   border-radius: 999px;
   background: var(--accent-wash);
   cursor: pointer;
+  /* 拖动进度时不要被系统的触控手势抢走 */
+  touch-action: none;
+}
+
+/* 3px 的条子太细，向上向下各撑 7px 当命中区（透明，不改外观） */
+.mini-bar::after {
+  content: "";
+  position: absolute;
+  inset: -7px 0;
 }
 
 .mini-bar > i,
@@ -184,7 +198,13 @@ body.mini {
   width: 0;
   border-radius: 999px;
   background: var(--accent);
+  /* 进度由 JS 每 250/500 毫秒推一次，补一段线性过渡让格子变连续。
+     拖动进度条时由 .scrubbing 关掉，否则指针会落后 0.25 秒。 */
+  transition: width 0.25s linear;
 }
+
+.barwrap.scrubbing .bar > i { transition: none; }
+.mini-bar.scrubbing > i { transition: none; }
 
 .mini-times {
   display: flex;
@@ -219,10 +239,10 @@ body.mini {
   height: 38px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   box-shadow: 0 4px 12px var(--accent-wash-strong);
 }
-.mini-ctrl button.play:hover { background: var(--accent-deep); color: #fff; }
+.mini-ctrl button.play:hover { background: var(--accent-deep); color: var(--on-accent); }
 .mini-ctrl button[disabled] { opacity: 0.3; cursor: default; }
 
 /* 循环 / 随机 / 红心：沿用整页那套语言（辅助键小一号，开启时点亮） */
@@ -273,9 +293,7 @@ body.mini.list-open .mini-vol { display: none; }
 .mini-back:hover { background: var(--accent-wash-strong); border-color: var(--accent); color: var(--ink); }
 .mini-list-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.mini-rows { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-.mini-rows::-webkit-scrollbar { width: 8px; }
-.mini-rows::-webkit-scrollbar-thumb { background: var(--edge); border-radius: 8px; }
+.mini-rows { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
 .mini-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 8px; cursor: pointer; }
 .mini-row:hover { background: var(--accent-wash); }
@@ -386,7 +404,7 @@ body.mini.list-open .mini-vol { display: none; }
 .mini-foot .mini-open:hover { background: var(--accent-wash); color: var(--ink); }
 /* 歌词条开着时那颗开关的态（v0.12.0） */
 .mini-foot .mini-open.on { background: var(--accent-wash); color: var(--ink); font-weight: 600; }
-.mini-foot .warn { color: #b07b62; }
+.mini-foot .warn { color: var(--warn); }
 
 svg.icon { width: 15px; height: 15px; fill: currentColor; display: block; }
 svg.icon.big { width: 18px; height: 18px; }
@@ -482,7 +500,7 @@ div.console {
   overflow: hidden;
   background: var(--accent-wash);
   border: 1px solid var(--edge-soft);
-  box-shadow: 0 8px 22px rgba(30, 32, 36, 0.1);
+  box-shadow: var(--shadow);
 }
 
 .player-cover.busy img { opacity: 0.5; filter: saturate(0.7); }
@@ -538,7 +556,7 @@ div.console {
   50% { opacity: 1; }
 }
 
-.barwrap { padding-top: 15px; cursor: pointer; }
+.barwrap { padding-top: 15px; cursor: pointer; touch-action: none; }
 
 .bar {
   position: relative;
@@ -588,11 +606,11 @@ div.console {
   height: 46px;
   border-radius: 50%;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
   box-shadow: 0 5px 14px var(--accent-wash-strong);
 }
-.ctrl button.play:hover { background: var(--accent-deep); color: #fff; }
+.ctrl button.play:hover { background: var(--accent-deep); color: var(--on-accent); }
 .ctrl button.play svg { width: 20px; height: 20px; }
 
 .ctrl button.heart.on { color: var(--accent); background: var(--accent-wash); }
@@ -654,7 +672,9 @@ div.console {
 .underrow {
   display: flex;
   align-items: center;
-  gap: 9px;
+  flex-wrap: wrap; /* 窄到放不下一行时换行，别让控件被压到竖排或被裁掉 */
+  column-gap: 9px;
+  row-gap: 7px;
   margin-top: 13px;
   padding-top: 12px;
   border-top: 1px solid var(--edge-soft);
@@ -668,10 +688,22 @@ div.console {
    .underrow 里的「整单下载 / 目录」没边框没底，看着就是一行普通文字 —— 整块像没做完。
    这里补成小胶囊按钮，并让标签对齐、下拉同宽。 */
 .underrow > span:first-child { min-width: 3.2em; }
-.underrow select { min-width: 8.4em; }
+/* 「上限 3 GB」当成一组：换行时一起走，不会散成三行残片 */
+.underrow .limit-group {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.underrow select { min-width: 8.4em; flex: 0 1 auto; }
+/* 数字框自己固定宽度：默认宽度会跟其他控件抢空，把「目录」挤成竖排、把 GB 挤出可视区 */
+.underrow input[type="number"] { flex: 0 0 auto; width: 4.4em; min-width: 0; }
 .underrow .mini-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
   padding: 4px 11px;
-  border: 1px solid rgba(42, 43, 46, 0.18);
+  border: 1px solid var(--edge);
   border-radius: 999px;
   background: var(--paper, #fff);
   font: inherit;
@@ -687,13 +719,202 @@ div.console {
 }
 .underrow .mini-btn:active { transform: translateY(0.5px); }
 
+/* ---------- 左列底部的设置入口（2026-11-12）---------
+ * 音质/输出/缓存这些低频项全部收进弹窗，这里只留一行状态摘要和一个齿轮，
+ * 把纵向空间还给封面与控制区。 */
+.settings-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--edge-soft);
+}
+
+.settings-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 齿轮不只是个图标：给它胶囊外壳和仪式感，否则在一列淡字里根本看不到 */
+.settings-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px 0 9px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 90%, var(--ink) 10%);
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  transition: background 0.16s, color 0.16s, border-color 0.16s, transform 0.24s;
+}
+
+.settings-btn svg { width: 14px; height: 14px; display: block; flex: 0 0 auto; }
+.settings-btn:hover {
+  background: var(--accent-wash);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.settings-btn:active { transform: rotate(18deg); }
+
+/* ---------- 设置弹窗 ---------- */
+.settings-card {
+  width: min(460px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  text-align: left;
+  /* 按住空白处可以拖走（拖动逻辑在 console.js） */
+  will-change: transform;
+}
+
+.settings-card.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.settings-card .env-title { font-size: 16px; }
+
+.set-group {
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--edge-soft);
+}
+
+.set-group:first-of-type { margin-top: 6px; padding-top: 0; border-top: 0; }
+
+/* 分组标题：加粗一点，后面拉一条细线，把「这是一组」交代清楚 */
+.set-h {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+}
+
+.set-h::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--edge-soft);
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+.set-row[hidden] { display: none; }
+.set-row > span:first-child { flex: 0 0 auto; min-width: 4.8em; color: var(--ink); white-space: nowrap; }
+/* 控件外壳：这些元素原本长在 .underrow 里，搬进弹窗后丢了那边整套外观，
+   深色下会露出浏览器默认的白底 + 浅字（2026-11-12 异羽截图）。 */
+.set-row select,
+.set-row input[type="number"] {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 240px;
+  height: 30px;
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  background-color: color-mix(in srgb, var(--paper) 90%, var(--ink) 10%);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-family: inherit;
+}
+
+.set-row select {
+  appearance: none;
+  padding: 0 24px 0 9px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8a8a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 7px center;
+  background-size: 12px 12px;
+  cursor: pointer;
+}
+
+/* 箭头是画在 background-image 里的，拿不到 currentColor，只能按浅/深两档给：
+   深色主题下用亮一点的灰，浅色主题用暗一点的，两边都不脏。 */
+:root[data-appearance="dark"] .set-row select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance]) .set-row select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  }
+}
+
+/* 按钮也丢了外衣（.mini-btn 的胶囊样式都写在 .underrow / .tabs 下面），
+   弹窗里再补一套，跟旁边的下拉保持同一套边框语言。 */
+.set-row .mini-btn {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.16s, color 0.16s, border-color 0.16s;
+}
+
+.set-row .mini-btn:hover {
+  background: var(--accent-wash);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.set-row .mini-btn:active { transform: translateY(0.5px); }
+
+.set-row select:hover { border-color: var(--accent); }
+
+.set-row input[type="number"] {
+  padding: 0 8px;
+  text-align: center;
+  appearance: textfield;
+}
+
+.set-row input[type="number"]::-webkit-outer-spin-button,
+.set-row input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+.set-unit { flex: 0 0 auto; color: var(--ink-faint); font-size: 11px; }
+
+.set-row .chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
 /* 路径条：收成一行，超长省略；点得亮 —— 它本身就是一个可点的控件。
    第一版边框用的 0.06 透明度太轻，肉眼等同于无框（2026-10-23 异羽：“好像没啥变化”），
    这里把边框提到 0.16、底色用纸白 —— 一眼能看出“这是一块可点的东西”。 */
 #dlDirHint {
   margin-top: 10px;
   padding: 7px 10px;
-  border: 1px solid rgba(42, 43, 46, 0.16);
+  border: 1px solid var(--edge);
   border-radius: 8px;
   background: var(--paper, #fff);
   font-size: 11.5px;
@@ -736,7 +957,7 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--ink-faint);
   min-height: 16px;
 }
-.note.warn { color: #b07b62; }
+.note.warn { color: var(--warn); }
 
 /* 右侧面板 */
 .panel {
@@ -794,23 +1015,57 @@ input[type="range"]::-webkit-slider-thumb {
 .tabs .mini-btn:hover { background: var(--accent-wash); color: var(--ink); }
 .tabs .mini-btn + .mini-btn { margin-left: 6px; }
 
-.pane { display: none; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 10px 12px 16px; }
+.pane { display: none; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 16px; }
 .pane.on { display: block; }
 
-/* 列表滚动条：加宽并常显（系统 overlay 滚动条又细又会自动隐没，抓不住） */
-.pane::-webkit-scrollbar { width: 12px; height: 12px; }
-.pane::-webkit-scrollbar-track { background: transparent; }
-.pane::-webkit-scrollbar-thumb {
+/* ---------- 滚动条（全站一套） ----------
+ * 以前只有 .pane 写了样式，左列播放器（.player）和窄窗口下的整页
+ * 会露出系统默认的浅色粗条，跟纸墨色完全不入。这里统一成同一个颜色，
+ * 只按容器大小分两档宽度：列表/整页 12px，小面板 8px。 */
+.pane::-webkit-scrollbar,
+.player::-webkit-scrollbar,
+body.console::-webkit-scrollbar,
+.modal-card::-webkit-scrollbar,
+.env-log pre::-webkit-scrollbar { width: 12px; height: 12px; }
+
+.mini-rows::-webkit-scrollbar { width: 8px; height: 8px; }
+
+.pane::-webkit-scrollbar-track,
+.player::-webkit-scrollbar-track,
+body.console::-webkit-scrollbar-track,
+.modal-card::-webkit-scrollbar-track,
+.env-log pre::-webkit-scrollbar-track,
+.mini-rows::-webkit-scrollbar-track { background: transparent; }
+
+.pane::-webkit-scrollbar-thumb,
+.player::-webkit-scrollbar-thumb,
+body.console::-webkit-scrollbar-thumb,
+.modal-card::-webkit-scrollbar-thumb,
+.env-log pre::-webkit-scrollbar-thumb {
   background: var(--edge);
   border: 3px solid transparent;
   border-radius: 8px;
   background-clip: content-box;
 }
-.pane::-webkit-scrollbar-thumb:hover {
+
+.mini-rows::-webkit-scrollbar-thumb {
+  background: var(--edge);
+  border-radius: 8px;
+}
+
+.pane::-webkit-scrollbar-thumb:hover,
+.player::-webkit-scrollbar-thumb:hover,
+body.console::-webkit-scrollbar-thumb:hover,
+.modal-card::-webkit-scrollbar-thumb:hover,
+.env-log pre::-webkit-scrollbar-thumb:hover,
+.mini-rows::-webkit-scrollbar-thumb:hover {
   background: var(--ink-faint);
   background-clip: content-box;
 }
-.pane::-webkit-scrollbar-corner { background: transparent; }
+
+.pane::-webkit-scrollbar-corner,
+.player::-webkit-scrollbar-corner,
+body.console::-webkit-scrollbar-corner { background: transparent; }
 
 /* 列表到顶/到底：浮在面板右下角，只在当前面板真能滚时出现 */
 .jump {
@@ -886,7 +1141,7 @@ input[type="range"]::-webkit-slider-thumb {
   padding: 0 14px;
   border-radius: 10px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 12.5px;
 }
 .searchbar button:hover { background: var(--accent-deep); }
@@ -898,11 +1153,11 @@ input[type="range"]::-webkit-slider-thumb {
   color: var(--ink-faint);
   line-height: 1.5;
 }
-.hint.warn { color: #b07b62; }
+.hint.warn { color: var(--warn); }
 /* 下载提示行：点一下在资源管理器里打开下载目录（完整路径在悬停提示里） */
 #dlHint { cursor: pointer; }
 #dlHint:hover { color: var(--accent); }
-#dlHint.warn:hover { color: #b07b62; }
+#dlHint.warn:hover { color: var(--warn); }
 
 .list { list-style: none; margin: 0; padding: 0; }
 
@@ -961,10 +1216,10 @@ input[type="range"]::-webkit-slider-thumb {
 .list li.trackrow.unplayable .nm .a,
 .list li.trackrow.unplayable .idx { color: var(--ink-faint); }
 .list li.trackrow.unplayable .row-cover { opacity: 0.45; filter: grayscale(1); }
-.list .dur.bad { color: #b07b62; font-size: 10px; }
+.list .dur.bad { color: var(--warn); font-size: 10px; }
 /* 只能试听片段的行（未登录时的 VIP 曲目）：同告警色，但字号维持 11px
    —— 它仍然能放（只是短），不该跟“无音源”一样退到 10px 忽略不计 */
-.list .dur.trial { color: #b07b62; }
+.list .dur.trial { color: var(--warn); }
 
 .list .nm .a {
   display: block;
@@ -999,7 +1254,7 @@ input[type="range"]::-webkit-slider-thumb {
 .pl-head .spacer { flex: 1 1 auto; }
 .pl-head button.mini-btn {
   padding: 5px 9px;
-  border: 1px solid var(--line, rgba(0,0,0,.12));
+  border: 1px solid var(--edge);
   background: transparent;
   border-radius: 999px;
   font: inherit;
@@ -1245,7 +1500,7 @@ select optgroup {
   justify-content: space-between;
   gap: 12px;
   font-size: 11.5px;
-  color: var(--muted, #8a8f96);
+  color: var(--ink-faint);
   line-height: 1.45;
 }
 .cache-row .cache-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1287,7 +1542,7 @@ select optgroup {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #b07b62;
+  background: var(--warn);
 }
 .envbar-txt {
   flex: 1 1 auto;
@@ -1317,7 +1572,7 @@ select optgroup {
 }
 .env-item .mark { flex: 0 0 auto; width: 14px; text-align: center; font-weight: 700; }
 .env-item.ok .mark { color: var(--color-ok); }
-.env-item.bad .mark { color: #b07b62; }
+.env-item.bad .mark { color: var(--warn); }
 .env-item.opt .mark { color: var(--ink-faint); }
 .env-item .body { flex: 1 1 auto; min-width: 0; }
 .env-item .t { display: block; font-size: 12.5px; font-weight: 600; }
@@ -1351,3 +1606,16 @@ select optgroup {
 }
 .env-foot { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .env-note { font-size: 11.5px; color: var(--ink-faint); line-height: 1.5; }
+
+/* ---------- 系统「减少动效」时的收敛 ----------
+   只关掉无休止和干扰性的动效（状态点呼吸、列表定位后闪一下、进度条追帧），
+   颜色与背景过渡保留：那些是「变化有回应」，不是「东西在自己动」。 */
+@media (prefers-reduced-motion: reduce) {
+  .badge .dot { animation: none; }
+  .mini-row.flash,
+  .list li.trackrow.flash { animation: none; }
+  .mini-bar > i,
+  .bar > i { transition: none; }
+  .mini-jump-btn,
+  .ctrl button { transition: background 0.01s, color 0.01s; }
+}

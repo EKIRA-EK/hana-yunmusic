@@ -16,8 +16,9 @@
        末尾那个 min(…, 25%) 是保底：显示区最窄也不低于中间 50%（即 2026-10-16 之前的值）。
        ⚠ 「一个关闭面板 = 64px」是估的（那颗钮是宿主的，量不到）。真机上看着不对就改这个数。 */
     --ls-pad-x: min(128px, 25%);
-  /* 右侧额外留白：宿主的 × 就在右边，长句靠得太近会挤在一起（2026-11-04）。 */
-  --ls-pad-r: min(184px, 32%);
+  /* 2026-11-12：这里原来还有一份「右侧额外留白」（min(184px, 32%)），是给宿主的 × 让路。
+     但左右不等会把显示区中心整个往左推 —— 行云那一档看着就是偏左的。
+     × 换成图标后只占约 30px，pad-x 本身（128px）已经够宽，所以删掉那份额外量，左右各一份 pad-x。 */
   /* 内容整体上浮：0.6 倍字号。四种模式统一口径（散雪是画布平移，其余是容器底部留白）。 */
   --ls-lift: calc(var(--ls-cur) * 0.6);
     /* 跟随宿主主题：正在唱 = 主题主色（--accent），两侧 = 次级文字（--text-muted）。
@@ -192,7 +193,7 @@
        2026-10-16 用户拿了截图指出太窄（黄的框是想要的，右下红框是宿主那颗「关闭面板」）。
        下边那 10px 不动：iframe 底边紧顶着宿主那行「关闭面板」，字在这个收窄后的容器里居中，
        重心上提，也不会跑出上边缘。边缘只留 3% 柔化。 */
-    inset: 0 var(--ls-pad-r) calc(10px + var(--ls-lift)) var(--ls-pad-x);
+    inset: 0 var(--ls-pad-x) calc(10px + var(--ls-lift)) var(--ls-pad-x);
     overflow: hidden;
     -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
     mask-image: linear-gradient(90deg, transparent 0, #000 3%, #000 97%, transparent 100%);
@@ -294,8 +295,15 @@
     position: absolute;
     inset: 0;
     display: block;
-    /* 右侧留出 × 的位置：画布窄 72px，字自然左移一点，不再贴着那颗叉。 */
-    width: calc(100% - 72px);
+    /* 左右各留 30px，画布与面板同心收缩。
+       2026-11-12 异羽：傲雪那一档句子偏左。两个原因套在一起：
+       ① 原来只写 width: calc(100% - 72px)，从左边起算、右边缩，画布中心就落在面板中心左边 36px；
+       ② 那 72px 是按旧的「关闭面板」四个字算的，宿主换成 × 图标后只占约 30px，早就用不了这么多。
+       ⚠ canvas 是**替换元素**，`width: auto` 会退回它自己的固有宽度（位图宽），不会像 div 那样
+         被 left/right 拉满 —— 所以这里必须给显式宽度，不能只靠 left/right。 */
+    left: 30px;
+    right: auto;
+    width: calc(100% - 60px);
     height: 100%;
     pointer-events: none;
     /* 2026-11-04：整块画布上浮 0.6 倍字号。

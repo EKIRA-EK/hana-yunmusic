@@ -68,6 +68,10 @@ const el = {
   envLogBody: $("envLogBody"),
   envRescan: $("envRescan"),
   envNote: $("envNote"),
+  settingsModal: $("settingsModal"),
+  settingsClose: $("settingsClose"),
+  btnSettings: $("btnSettings"),
+  settingsSummary: $("settingsSummary"),
   plHead: $("plHead"),
   plBack: $("plBack"),
   plTitle: $("plTitle"),
@@ -240,6 +244,16 @@ function tick() {
   if (!view.dragging) {
     el.cur.textContent = mmss(pos);
     el.fill.style.width = duration ? `${Math.min(100, (pos / duration) * 100)}%` : "0%";
+  }
+  /* 进度条的语义值：读屏软件靠 aria-valuenow 才知道走到哪了。
+     只在整数百分比变化时才写属性，免得每 250 毫秒骚扰一次无障碍树。 */
+  if (el.barwrap && duration) {
+    const pct = Math.min(100, Math.round((pos / duration) * 100));
+    if (pct !== view.ariaPct) {
+      view.ariaPct = pct;
+      el.barwrap.setAttribute("aria-valuenow", String(pct));
+      el.barwrap.setAttribute("aria-valuetext", `${mmss(pos)} / ${mmss(duration)}`);
+    }
   }
   if (view.lyric.lines.length) highlightLyric(pos);
 }
@@ -588,12 +602,13 @@ document.addEventListener(
   true,
 );
 
+let queueHtml = "";
 function renderQueue(data) {
   if (data) view.queue = data;
   const items = (view.queue && view.queue.items) || [];
   el.queueCount.textContent = items.length ? ` · ${items.length}` : "";
   el.queueEmpty.style.display = items.length ? "none" : "block";
-  el.queueList.innerHTML = items
+  const html = items
     .map((item) => {
       const cover = item.coverUrl
         ? `<span class="row-cover"><img src="${coverSrc(item.coverUrl)}" alt="" loading="lazy" /></span>`
@@ -613,6 +628,11 @@ function renderQueue(data) {
       </li>`;
     })
     .join("");
+  /* 内容一模一样就不碰 DOM：每 4 秒一次全量 innerHTML 会把悬停、焦点和正在进行的拖拽打断。
+     先把字符串拼出来再比，比让浏览器重新解析一遍便宜得多。 */
+  if (html === queueHtml) return;
+  queueHtml = html;
+  el.queueList.innerHTML = html;
 }
 
 function renderSearch() {
@@ -1070,6 +1090,7 @@ function applyState(st) {
   /* 后端把档位回写完了再收一次：未登录时两栏都只留「标准」（显示即实际，偏好不动） */
   applyLevelAvailability();
   if (st.backend && el.backend && el.backend.value !== st.backend) el.backend.value = st.backend;
+  updateSettingsSummary();
   syncMpvRow(st);
   syncAudio(st);
   renderPlayer();
@@ -1143,6 +1164,7 @@ async function annotate(ids) {
 }
 
 async function refreshQueue(force) {
+  if (dragFrom) return; // 队列正被拖着：此刻重建 DOM 会把拖着的那个元素换掉
   const now = Date.now();
   if (!force && now - queueTimer < 2500) return;
   queueTimer = now;
@@ -1499,29 +1521,66 @@ if (el.mpvExclusive) {
   });
 }
 
-/* 进度条拖动 */
+/* 进度条：按下就跳，按住可拖。拖动期间时钟不写，松手才发 seek。
+   与 Mini 面板同一套手：按下立即出反馉，不等后端。 */
+let barRect = null;
 function barRatio(event) {
-  const rect = el.barwrap.getBoundingClientRect();
+  const rect = barRect || el.barwrap.getBoundingClientRect();
   return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+}
+function previewSeek(event) {
+  const duration = view.clock.duration || 0;
+  if (!duration) return;
+  const ratio = barRatio(event);
+  const pos = ratio * duration;
+  el.fill.style.width = `${ratio * 100}%`;
+  el.cur.textContent = mmss(pos);
+  view.ariaPct = Math.round(ratio * 100);
+  el.barwrap.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
+  el.barwrap.setAttribute("aria-valuetext", `${mmss(pos)} / ${mmss(duration)}`);
 }
 el.barwrap.addEventListener("pointerdown", (event) => {
   if (!view.clock.duration) return;
   view.dragging = true;
+  // 矩形只量一次：不是每次移动都读 layout，拖动才跟手
+  barRect = el.barwrap.getBoundingClientRect();
+  el.barwrap.classList.add("scrubbing");
   el.barwrap.setPointerCapture(event.pointerId);
-  el.cur.textContent = mmss(barRatio(event) * view.clock.duration);
+  previewSeek(event);
 });
 el.barwrap.addEventListener("pointermove", (event) => {
   if (!view.dragging) return;
-  el.fill.style.width = `${barRatio(event) * 100}%`;
-  el.cur.textContent = mmss(barRatio(event) * view.clock.duration);
+  previewSeek(event);
 });
 el.barwrap.addEventListener("pointerup", async (event) => {
-  if (!view.dragging) return;
+  if (!view.dragging) {
+    el.barwrap.classList.remove("scrubbing");
+    barRect = null;
+    return;
+  }
   view.dragging = false;
-  const seconds = Math.round(barRatio(event) * view.clock.duration);
+  const duration = view.clock.duration || 0;
+  const seconds = Math.round(barRatio(event) * duration);
   view.clock.pos = seconds;
   view.clock.at = Date.now();
+  // 先落位再放开过渡：点一下应该立刻到，而不是慢慢滑过去
+  if (duration) {
+    const pct = Math.min(100, (seconds / duration) * 100);
+    el.fill.style.width = `${pct}%`;
+    el.cur.textContent = mmss(seconds);
+    view.ariaPct = Math.round(pct);
+    el.barwrap.setAttribute("aria-valuenow", String(Math.round(pct)));
+    el.barwrap.setAttribute("aria-valuetext", `${mmss(seconds)} / ${mmss(duration)}`);
+  }
+  el.barwrap.classList.remove("scrubbing");
+  barRect = null;
   await control("seek", { position: seconds });
+});
+
+el.barwrap.addEventListener("pointercancel", () => {
+  el.barwrap.classList.remove("scrubbing");
+  view.dragging = false;
+  barRect = null;
 });
 
 let volumePostTimer = 0;
@@ -2041,6 +2100,76 @@ el.loginModal.addEventListener("click", (event) => {
   if (event.target === el.loginModal) closeLogin();
 });
 
+/* ---------------- 设置弹窗 ----------------
+ * 音质、输出、缓存从左列搬到这里。一律靠 id 取元素，所以逻辑不用改，
+ * 只是换了个父容器。 */
+function updateSettingsSummary() {
+  if (!el.settingsSummary) return;
+  const label = (node) => {
+    const opt = node && node.selectedOptions && node.selectedOptions[0];
+    return opt ? String(opt.textContent || "").trim() : "";
+  };
+  const next = [label(el.level), label(el.backend)].filter(Boolean).join(" · ");
+  // 只在真的变了时写属性：applyState 每 1.5 秒就会走到这里
+  if (el.settingsSummary.textContent !== next) {
+    el.settingsSummary.textContent = next;
+    el.settingsSummary.title = next;
+  }
+}
+
+function openSettings() {
+  updateSettingsSummary();
+  el.settingsModal.hidden = false;
+}
+
+function closeSettings() {
+  el.settingsModal.hidden = true;
+  // 拖过的位置关窗时复位，下次打开还在正中
+  const card = el.settingsModal.querySelector(".settings-card");
+  if (card) {
+    card.style.transform = "";
+    card.classList.remove("dragging");
+  }
+}
+
+/* 按住弹窗空白处可以拖走（2026-11-12）。
+ * 卡片在 .modal 的 flex 容器里居中，所以用 transform 位移，不改定位。 */
+(function enableSettingsDrag() {
+  const card = el.settingsModal && el.settingsModal.querySelector(".settings-card");
+  if (!card) return;
+  let drag = null;
+  card.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0) return;
+    // 控件上按下是操作，不是拖动
+    if (event.target.closest("select, input, button, a, label, textarea")) return;
+    drag = { x: event.clientX, y: event.clientY };
+    card.setPointerCapture(event.pointerId);
+    card.classList.add("dragging");
+  });
+  card.addEventListener("pointermove", (event) => {
+    if (!drag) return;
+    card.style.transform = `translate(${event.clientX - drag.x}px, ${event.clientY - drag.y}px)`;
+  });
+  const stop = () => {
+    if (!drag) return;
+    drag = null;
+    card.classList.remove("dragging");
+  };
+  card.addEventListener("pointerup", stop);
+  card.addEventListener("pointercancel", stop);
+})();
+
+if (el.btnSettings) el.btnSettings.addEventListener("click", openSettings);
+if (el.settingsClose) el.settingsClose.addEventListener("click", closeSettings);
+if (el.settingsModal) {
+  el.settingsModal.addEventListener("click", (event) => {
+    if (event.target === el.settingsModal) closeSettings();
+  });
+}
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && el.settingsModal && !el.settingsModal.hidden) closeSettings();
+});
+
 /* ---------------- audio 事件 ---------------- */
 
 audio.addEventListener("timeupdate", () => {
@@ -2125,12 +2254,32 @@ function renderEnvBar(st) {
   el.envBarText.textContent = bad ? `${sum.headline || "环境未就绪"} —— 点右边的「环境自检」` : "";
 }
 
+/* 环境条的重试：只在“服务还没起来”时排队，真缺东西就等用户自己动手。 */
+let envRetryTimer = 0;
+let envRetryStep = 0;
+const ENV_RETRY_DELAYS = [2500, 5000, 10000, 20000, 40000];
+
+function scheduleEnvRetry(st) {
+  if (envRetryTimer || envRetryStep >= ENV_RETRY_DELAYS.length) return;
+  if (st && st.needs && st.needs.apiEnhanced) return;
+  const delay = ENV_RETRY_DELAYS[envRetryStep];
+  envRetryStep += 1;
+  envRetryTimer = setTimeout(() => {
+    envRetryTimer = 0;
+    void refreshEnv();
+  }, delay);
+}
+
 async function refreshEnv() {
   try {
     const st = await api("setup/status");
     renderEnvBar(st);
     if (!el.envModal.hidden) renderEnvList(st);
     if (st.job && st.job.running) startEnvPoll();
+    /* 条子还挂着就再等等：取源服务是子进程，页面启动 700ms 那次几乎必然读到
+       “还没 ready”，之后又没人再问，于是一整轮都以为环境没就绪（2026-11-12 放歌时还在提示）。
+       退避重试五次，就绪后条子自己收起来；真缺依赖（needs.apiEnhanced）不重试。 */
+    if (!el.envBar.hidden) scheduleEnvRetry(st);
     return st;
   } catch (error) {
     el.envBar.hidden = false;

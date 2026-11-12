@@ -279,12 +279,25 @@ function render() {
   markListCurrent();
 }
 
+/* 手指按在进度条上时，由拖动预览接管，时钟暂停写入 */
+let scrubbing = false;
+
 function tick() {
+  if (scrubbing) return;
   const clock = view.clock;
   const duration = clock.duration || 0;
   const pos = Math.min(duration || Infinity, clock.playing ? clock.pos + (Date.now() - clock.at) / 1000 : clock.pos);
   el.cur.textContent = mmss(pos);
   el.fill.style.width = duration ? `${Math.min(100, (pos / duration) * 100)}%` : "0%";
+  /* 进度条的语义值：只在整数百分比变了时写，不给无障碍树制造噪音 */
+  if (el.bar && duration) {
+    const pct = Math.min(100, Math.round((pos / duration) * 100));
+    if (pct !== view.ariaPct) {
+      view.ariaPct = pct;
+      el.bar.setAttribute("aria-valuenow", String(pct));
+      el.bar.setAttribute("aria-valuetext", `${mmss(pos)} / ${mmss(duration)}`);
+    }
+  }
 }
 
 async function refresh() {
@@ -807,12 +820,55 @@ if (el.sub) {
   });
 }
 
-el.bar.addEventListener("click", (event) => {
-  const duration = view.clock.duration;
-  if (!duration) return;
+/* 进度条：按下就能跳，按住可以拖。拖的时候本地先跟手（关过渡），松手才发 seek。 */
+function barRatio(event) {
   const rect = el.bar.getBoundingClientRect();
-  const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
-  control("seek", { position: Math.round(ratio * duration) });
+  return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+}
+
+function previewSeek(event) {
+  const duration = view.clock.duration || 0;
+  if (!duration) return;
+  const ratio = barRatio(event);
+  const pos = ratio * duration;
+  el.fill.style.width = `${ratio * 100}%`;
+  el.cur.textContent = mmss(pos);
+  el.bar.setAttribute("aria-valuenow", String(Math.round(ratio * 100)));
+  el.bar.setAttribute("aria-valuetext", `${mmss(pos)} / ${mmss(duration)}`);
+}
+
+el.bar.addEventListener("pointerdown", (event) => {
+  if (!view.clock.duration) return;
+  scrubbing = true;
+  el.bar.classList.add("scrubbing");
+  el.bar.setPointerCapture(event.pointerId);
+  previewSeek(event);
+});
+
+el.bar.addEventListener("pointermove", (event) => {
+  if (!scrubbing) return;
+  previewSeek(event);
+});
+
+el.bar.addEventListener("pointerup", (event) => {
+  if (!scrubbing) return;
+  scrubbing = false;
+  const duration = view.clock.duration || 0;
+  if (!duration) return void el.bar.classList.remove("scrubbing");
+  const seconds = Math.round(barRatio(event) * duration);
+  // 先把宽度写到位（此时过渡还是关的），再松掉 class，点击就不会滑完那 0.25 秒
+  el.fill.style.width = `${Math.min(100, (seconds / duration) * 100)}%`;
+  el.cur.textContent = mmss(seconds);
+  el.bar.classList.remove("scrubbing");
+  // 乐观更新：本地时钟先跳过去，不等后端回执，下一次 refresh 再对齐
+  view.clock.pos = seconds;
+  view.clock.at = Date.now();
+  control("seek", { position: seconds });
+});
+
+el.bar.addEventListener("pointercancel", () => {
+  scrubbing = false;
+  el.bar.classList.remove("scrubbing");
 });
 
 render();
