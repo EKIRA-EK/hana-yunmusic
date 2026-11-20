@@ -50,6 +50,7 @@ const el = {
   searchList: $("searchList"),
   lyricHint: $("lyricHint"),
   lyricBody: $("lyricBody"),
+  lyricFamily: $("lyricFamily"),
   btnDaily: $("btnDaily"),
   btnFavorite: $("btnFavorite"),
   btnAccount: $("btnAccount"),
@@ -1735,8 +1736,9 @@ async function runSearch() {
   }
 }
 
-/* 歌词字体（2026-10-23）：与带子共用同一份设置（lyric-strip/config 里的 family）。
- *  选择器直接插在歌词页那句提示后面 —— 不另改 HTML，两边换字体是同一件事。 */
+/* 歌词字体（2026-10-23 引入；2026-11-14 从歌词页搬进设置弹窗）：
+ *  与带子共用同一份设置（lyric-strip/config 里的 family）。
+ *  搬走的原因：歌词页里歌词会跟着歌滚动，找那个下拉框得回头抓，改成“放设置里”才方便。 */
 function applyLyricFamily(id, list) {
   const hit = (list || []).find((f) => f.id === id);
   const css = hit ? String(hit.css || "inherit") : "inherit";
@@ -1763,15 +1765,15 @@ async function initLyricFamily() {
     if (!cfg || !Array.isArray(cfg.families) || !cfg.families.length) return;
     /* 自定义字体不在 HANA 的字体表里，页面不认识那个族名 —— 先把 @font-face 注进来（2026-10-23） */
     injectFontFaces(cfg.families);
-    const sel = document.createElement("select");
-    sel.id = "lyricFamily";
-    sel.title = "歌词字体（带子与这里共用）";
+    const sel = el.lyricFamily;
+    if (!sel) return;
     const groups = [
       ["hana", "HANA 字体"],
       ["custom", "自定义字体（HANA 字体库）"],
       ["zh", "系统中文字体"],
       ["en", "系统西文字体"],
     ];
+    sel.textContent = "";
     for (const [g, label] of groups) {
       const og = document.createElement("optgroup");
       og.label = label;
@@ -1783,7 +1785,7 @@ async function initLyricFamily() {
       }
       if (og.children.length) sel.appendChild(og);
     }
-    sel.value = cfg.family || "hana";
+    sel.value = cfg.family || "serif";
     sel.addEventListener("change", async () => {
       applyLyricFamily(sel.value, cfg.families);
       const hit = cfg.families.find((f) => f.id === sel.value);
@@ -1795,11 +1797,8 @@ async function initLyricFamily() {
       }
     });
     applyLyricFamily(sel.value, cfg.families);
-    if (el.lyricHint && el.lyricHint.parentElement) {
-      el.lyricHint.parentElement.insertBefore(sel, el.lyricHint.nextSibling);
-    }
   } catch {
-    /* 取不到配置就不显示选择器，不影响别的 */
+    /* 取不到配置就不填选项，不影响别的 */
   }
 }
 void initLyricFamily();
