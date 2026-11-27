@@ -1949,7 +1949,7 @@ function applyLevelAvailability() {
     for (const opt of Array.from(sel.options)) {
       const off = !loggedIn && opt.value !== fallback;
       opt.disabled = off;
-      opt.title = off ? "未登录时网易云只给 128k，先登录再用这一档" : "";
+      opt.title = off ? "未登录时只给 128k，先登录再用这一档" : "";
     }
     if (!loggedIn && sel.value !== fallback) sel.value = fallback;
   };
@@ -1964,8 +1964,8 @@ function applyLevelAvailability() {
 
   /* 说明写在**看得见的一行**上：`<option>` 的 title 在 Chromium 里不弹
    *（尤其是 disabled 的选项，鼠标没机会停在上面）—— 2026-10-15 用户实测指出。 */
-  if (el.dlLevel) el.dlLevel.title = loggedIn ? "下载音质" : "未登录：网易云只给 128k";
-  if (el.level) el.level.title = loggedIn ? "音质" : "未登录：网易云只给 128k";
+  if (el.dlLevel) el.dlLevel.title = loggedIn ? "下载音质" : "未登录：只给 128k";
+  if (el.level) el.level.title = loggedIn ? "音质" : "未登录：只给 128k";
   if (el.dlLevelHint) {
     el.dlLevelHint.hidden = loggedIn;
     el.dlLevelHint.textContent = loggedIn
@@ -2000,9 +2000,9 @@ async function refreshAccount() {
 function renderAccountPanel(profile) {
   if (!profile) {
     el.loginBody.innerHTML = `
-      <p class="login-title">扫码登录网易云</p>
+      <p class="login-title">扫码登录</p>
       <div class="qr-box" id="qrBox"><span class="qr-loading">正在获取二维码…</span></div>
-      <div class="login-tip" id="loginTip">用「网易云音乐」App 扫码</div>`;
+      <div class="login-tip" id="loginTip">用手机上的音乐 App 扫码</div>`;
     startQr();
     return;
   }

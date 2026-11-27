@@ -387,7 +387,7 @@ const server = http.createServer(async (req, res) => {
         /* 中文路径必经：不显式置输出编码，汉字会以 GBK 吐出来，Node 按 UTF-8 解就是乱码。 */
         "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8",
         "Add-Type -TypeDefinition @\"" + "\n" + cs + "\n\"@",
-        "[Console]::Out.Write([HanaFolderPicker]::Pick('选择 HANA云音乐 的下载目录', " + JSON.stringify(initial) + "))",
+        "[Console]::Out.Write([HanaFolderPicker]::Pick('选择 HANA云听听 的下载目录', " + JSON.stringify(initial) + "))",
       ].join("\n");
       /* 用 -EncodedCommand（UTF-16LE base64）传，不走 stdin：
          stdin 的编码由控制台默认页决定，中文标题/路径会在这里丢掉。 */

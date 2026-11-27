@@ -1,4 +1,4 @@
-/* HANA云音乐 — 页面共用小工具：后端调用、封面地址、主题跟随、格式化。 */
+/* HANA云听听 — 页面共用小工具：后端调用、封面地址、主题跟随、格式化。 */
 
 export const APP_ID = (location.pathname.match(/^\/api\/apps\/([^/]+)\//) || [])[1] || "hana-yunmusic";
 export const SESSION = new URLSearchParams(location.search).get("appSurfaceSession") || "";
@@ -78,7 +78,7 @@ export async function initHana() {
     const module = await import("./sdk.js");
     hana = module.hana || null;
   } catch (error) {
-    console.warn("[HANA云音乐] 宿主 SDK 未加载，界面仍可用", error);
+    console.warn("[HANA云听听] 宿主 SDK 未加载，界面仍可用", error);
   }
   if (!hana) return null;
   try {
@@ -87,12 +87,12 @@ export async function initHana() {
       hana.theme.subscribe((snapshot) => applyAppearance(snapshot));
     }
   } catch (error) {
-    console.warn("[HANA云音乐] 主题跟随不可用", error);
+    console.warn("[HANA云听听] 主题跟随不可用", error);
   }
   try {
     await hana.ready();
   } catch (error) {
-    console.warn("[HANA云音乐] hana.ready 失败", error);
+    console.warn("[HANA云听听] hana.ready 失败", error);
   }
   return hana;
 }
